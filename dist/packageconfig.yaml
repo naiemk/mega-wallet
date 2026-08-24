@@ -1,7 +1,7 @@
 name: mega-wallet
 version: 1
-rawBase: /workspaces/mega-wallet/dist
-packagerRaw: "/workspaces/mega-wallet/node_modules/.pnpm/vibed-infra@0.5.0/node_modules/vibed-infra"
+rawBase: .
+packagerRaw: "vibed-infra"
 network:
   edge: mega-wallet-edge
 images:
