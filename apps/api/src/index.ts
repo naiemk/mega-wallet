@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { createAuth } from "./auth.js";
+import { createAuth, runAuthMigrations } from "./auth.js";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
@@ -32,6 +32,7 @@ mkdirSync(dirname(config.eventLogPath), { recursive: true });
 
 const db = createDb(config.databaseUrl);
 initSchema(db);
+await runAuthMigrations(config);
 
 const fakeOnRamp = new FakeOnRampAdapter();
 const fakeOffRamp = new FakeOffRampAdapter();

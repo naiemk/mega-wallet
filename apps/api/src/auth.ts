@@ -1,11 +1,12 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import Database from "better-sqlite3";
 import { passkey } from "@better-auth/passkey";
+import { getMigrations } from "better-auth/db/migration";
 import type { AppConfig } from "./config.js";
 
-export function createAuth(config: AppConfig) {
+export function buildAuthOptions(config: AppConfig): BetterAuthOptions {
   const db = new Database(config.databaseUrl.replace("file:", "") || config.databaseUrl);
-  return betterAuth({
+  return {
     database: db,
     secret: config.betterAuthSecret,
     baseURL: config.betterAuthUrl,
@@ -31,7 +32,17 @@ export function createAuth(config: AppConfig) {
         affiliateEarnedUsdCents: { type: "number", defaultValue: 0, input: false },
       },
     },
-  });
+  };
+}
+
+export function createAuth(config: AppConfig) {
+  return betterAuth(buildAuthOptions(config));
+}
+
+export async function runAuthMigrations(config: AppConfig) {
+  const options = buildAuthOptions(config);
+  const { runMigrations } = await getMigrations(options);
+  await runMigrations();
 }
 
 export type Auth = ReturnType<typeof createAuth>;
