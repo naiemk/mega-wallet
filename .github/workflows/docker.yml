@@ -92,11 +92,15 @@ jobs:
           tags: ${{ steps.meta_worker.outputs.tags }}
 
       - name: Local compose smoke
+        env:
+          IMAGE_API: mega-wallet-api:local
+          IMAGE_UI: mega-wallet-ui:local
+          IMAGE_WORKER: mega-wallet-worker:local
         run: |
           chmod +x deploy/gen-dev-certs.sh deploy/smoke-test.sh build-images.sh
           ./build-images.sh
           ./deploy/gen-dev-certs.sh
-          docker compose -f deploy/docker-compose.yml up -d
+          docker compose -f deploy/docker-compose.yml up -d --pull never
           sleep 12
           ./deploy/smoke-test.sh
           docker compose -f deploy/docker-compose.yml down -v
