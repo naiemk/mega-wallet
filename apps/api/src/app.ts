@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { eq } from "drizzle-orm";
 import { generateInviteCode } from "@mega-wallet/core";
 import type { AppContext } from "./context.js";
+import { isAllowedOrigin } from "./config.js";
 import { users } from "./db/schema.js";
 
 export function createApp(ctx: AppContext) {
@@ -11,7 +12,7 @@ export function createApp(ctx: AppContext) {
   app.use(
     "*",
     cors({
-      origin: ctx.config.publicUiUrl,
+      origin: (origin) => (isAllowedOrigin(origin, ctx.config.publicUiUrl) ? origin : ctx.config.publicUiUrl),
       credentials: true,
     }),
   );

@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+/** Same-origin so Cursor/VS Code port forwarding works; Vite proxies /api to the API. */
+const API_BASE = "";
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;

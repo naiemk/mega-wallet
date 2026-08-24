@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { passkey } from "@better-auth/passkey";
 import { getMigrations } from "better-auth/db/migration";
 import type { AppConfig } from "./config.js";
+import { isAllowedOrigin } from "./config.js";
 
 export function buildAuthOptions(config: AppConfig): BetterAuthOptions {
   const db = new Database(config.databaseUrl.replace("file:", "") || config.databaseUrl);
@@ -10,6 +11,10 @@ export function buildAuthOptions(config: AppConfig): BetterAuthOptions {
     database: db,
     secret: config.betterAuthSecret,
     baseURL: config.betterAuthUrl,
+    trustedOrigins: (request) => {
+      const origin = request?.headers.get("origin") ?? "";
+      return isAllowedOrigin(origin, config.publicUiUrl) ? [origin, config.publicUiUrl] : [config.publicUiUrl];
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
