@@ -1,0 +1,71 @@
+name: mega-wallet
+services:
+  api:
+    image: ${IMAGE_API:-mega-wallet-api:local}
+    container_name: mega-wallet-api
+    environment:
+      FAKE_RAMPS: "1"
+      PORT: "8080"
+      DATABASE_URL: /data/mega-wallet.db
+      EVENT_LOG_PATH: /data/events.jsonl
+      BETTER_AUTH_SECRET: dev-secret-change-me-in-production-min-32-chars
+      BETTER_AUTH_URL: https://localhost
+      PUBLIC_UI_URL: https://localhost
+      INTERNAL_WORKER_TOKEN: dev-worker-token
+      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+    volumes:
+      - api-data:/data
+    networks:
+      - mega-wallet-edge
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ui:
+    image: ${IMAGE_UI:-mega-wallet-ui:local}
+    container_name: mega-wallet-ui
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - mega-wallet-edge
+
+  worker:
+    image: ${IMAGE_WORKER:-mega-wallet-worker:local}
+    container_name: mega-wallet-worker
+    environment:
+      API_URL: http://mega-wallet-api:8080
+      INTERNAL_WORKER_TOKEN: dev-worker-token
+      WORKER_INTERVAL_MS: "10000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - mega-wallet-edge
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.nginx
+    container_name: mega-wallet-nginx
+    ports:
+      - "8443:443"
+      - "8088:80"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      ui:
+        condition: service_started
+    networks:
+      - mega-wallet-edge
+
+networks:
+  mega-wallet-edge:
+    name: mega-wallet-edge
+
+volumes:
+  api-data:

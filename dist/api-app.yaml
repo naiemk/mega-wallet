@@ -1,0 +1,7 @@
+fakeRamps: false
+quoteTtlHours: 2
+slippageBps: 100
+operatorWallets:
+  ethereum: 0x0000000000000000000000000000000000000001
+  base: 0x0000000000000000000000000000000000000002
+  tron: T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb

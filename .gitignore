@@ -80,8 +80,16 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+**/dist
+!/dist/
+!/dist/**
 .output
+
+# Playwright / local dev artifacts
+test-results/
+playwright-report/
+data/
+deploy/certs/
 
 # Gatsby files
 .cache/

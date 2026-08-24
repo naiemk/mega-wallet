@@ -1,0 +1,126 @@
+name: Docker images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/mega-wallet-api
+  IMAGE_UI: ghcr.io/${{ github.repository_owner }}/mega-wallet-ui
+  IMAGE_WORKER: ghcr.io/${{ github.repository_owner }}/mega-wallet-worker
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (api)
+        id: meta_api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=raw,value=main,enable={{is_default_branch}}
+            type=ref,event=pr
+            type=sha,prefix=main-,format=short
+            type=semver,pattern={{version}}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: app/api/Dockerfile
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta_api.outputs.tags }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Docker meta (ui)
+        id: meta_ui
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_UI }}
+          tags: |
+            type=raw,value=main,enable={{is_default_branch}}
+            type=ref,event=pr
+            type=sha,prefix=main-,format=short
+            type=semver,pattern={{version}}
+
+      - name: Build and push UI
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: app/ui/Dockerfile
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta_ui.outputs.tags }}
+
+      - name: Docker meta (worker)
+        id: meta_worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_WORKER }}
+          tags: |
+            type=raw,value=main,enable={{is_default_branch}}
+            type=ref,event=pr
+            type=sha,prefix=main-,format=short
+            type=semver,pattern={{version}}
+
+      - name: Build and push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: app/worker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta_worker.outputs.tags }}
+
+      - name: Local compose smoke
+        env:
+          IMAGE_API: mega-wallet-api:local
+          IMAGE_UI: mega-wallet-ui:local
+          IMAGE_WORKER: mega-wallet-worker:local
+        run: |
+          chmod +x deploy/gen-dev-certs.sh deploy/smoke-test.sh build-images.sh
+          ./build-images.sh
+          ./deploy/gen-dev-certs.sh
+          docker compose -f deploy/docker-compose.yml up -d --pull never
+          sleep 12
+          ./deploy/smoke-test.sh
+          docker compose -f deploy/docker-compose.yml down -v
+
+      - uses: pnpm/action-setup@v4
+        if: github.ref == 'refs/heads/main'
+
+      - uses: actions/setup-node@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: System tests against published images
+        if: github.ref == 'refs/heads/main'
+        env:
+          IMAGE_TAG: main
+          PULL: "0"
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          chmod +x system-tests/scripts/*.sh
+          cp system-tests/.env.example system-tests/.env
+          npm run system-test

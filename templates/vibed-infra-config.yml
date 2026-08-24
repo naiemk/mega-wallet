@@ -1,0 +1,37 @@
+name: mega-wallet
+version: 1
+
+templates:
+  api: api-config.yaml
+  ui: ui-config.yaml
+  nodes: nodes-config.yaml
+
+network:
+  edge: mega-wallet-edge
+
+autoUpdate:
+  api:
+    enabled: true
+    intervalMin: 30
+    offset: 0
+  ui:
+    enabled: true
+    intervalMin: 20
+    offset: 15
+  nodes:
+    enabled: true
+    intervalMin: 30
+    offset: 10
+  gateway:
+    enabled: true
+    intervalMin: 20
+    offset: 20
+
+gateway:
+  nginxImage: nginx:alpine
+  sites:
+    - host: wallet.example.com
+      aliases:
+        - www.wallet.example.com
+      healthPath: /api/health
+      tlsCertDir: /etc/letsencrypt/live/wallet.example.com
