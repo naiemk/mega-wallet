@@ -1,0 +1,2 @@
+image: ghcr.io/naiemk/mega-wallet-ui:main
+port: 80

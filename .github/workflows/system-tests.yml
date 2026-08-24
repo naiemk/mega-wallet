@@ -1,0 +1,63 @@
+name: System tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "GHCR image tag to pull"
+        required: false
+        default: "main"
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_run:
+    workflows: ["Docker images"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  system-test:
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "image_tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tag=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run system tests
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
+          PULL: "1"
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          chmod +x system-tests/scripts/*.sh deploy/gen-dev-certs.sh
+          cp system-tests/.env.example system-tests/.env
+          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" system-tests/.env
+          npm run system-test
