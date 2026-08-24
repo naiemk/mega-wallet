@@ -4,10 +4,10 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE=(docker compose -f "$ROOT/docker-compose.yml")
 
 echo "== health =="
-"${COMPOSE[@]}" exec -T nginx wget -qO- --no-check-certificate https://127.0.0.1/api/health | grep -q '"ok": true'
+"${COMPOSE[@]}" exec -T nginx wget -qO- --no-check-certificate https://127.0.0.1/api/health | grep -qE '"ok"\s*:\s*true'
 
 echo "== ready =="
-"${COMPOSE[@]}" exec -T nginx wget -qO- --no-check-certificate https://127.0.0.1/api/ready | grep -q '"ok": true'
+"${COMPOSE[@]}" exec -T nginx wget -qO- --no-check-certificate https://127.0.0.1/api/ready | grep -qE '"ok"\s*:\s*true'
 
 echo "== quotes (public) =="
 "${COMPOSE[@]}" exec -T api node -e "
