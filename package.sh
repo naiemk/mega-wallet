@@ -6,7 +6,7 @@ bash "$PACKAGER/package.sh" --product "$ROOT" --out "$ROOT/dist"
 
 TPL="$ROOT/templates"
 DIST="$ROOT/dist"
-for f in start-api.sh docker-compose.workers.yml .env.api.example .env.nodes.example; do
+for f in start-api.sh docker-compose.workers.yml .env.api.example .env.nodes.example .env.ui.example; do
   if [[ -f "$TPL/$f" ]]; then
     cp "$TPL/$f" "$DIST/$f"
     [[ "$f" == *.sh ]] && chmod +x "$DIST/$f"
