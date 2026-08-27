@@ -53,8 +53,6 @@ services:
     ports:
       - "8443:443"
       - "8088:80"
-    volumes:
-      - ./certs:/etc/nginx/certs:ro
     depends_on:
       api:
         condition: service_healthy

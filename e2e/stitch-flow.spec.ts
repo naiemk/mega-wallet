@@ -6,11 +6,11 @@ test.describe("Stitch wallet flows", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
     await expect(page.getByText(/Total balance|Available/i)).toBeVisible();
 
     await page.getByRole("link", { name: "Transfer" }).click();
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
     await expect(page.getByText("You send")).toBeVisible();
 
     await page.getByRole("button", { name: "Get quote" }).click();
@@ -30,10 +30,10 @@ test.describe("Stitch wallet flows", () => {
     });
 
     await page.goto("/history");
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
 
     await page.goto("/account");
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
     await expect(page.getByLabel("Language")).toBeVisible();
     await page.getByLabel("Language").selectOption("fa");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -47,7 +47,7 @@ test.describe("Stitch wallet flows", () => {
 
     await page.goto("/wallet");
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
   });
 
   test("signed-in transfer reaches status", async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe("Stitch wallet flows", () => {
   test("desktop width wallet chrome", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /IraniPay/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "Wallet" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Account" })).toBeVisible();
     const html = await page.locator("#root").innerHTML();
