@@ -42,17 +42,17 @@ export function WalletDepositPage() {
       return;
     }
     setQuoting(true);
-    setError("");
     try {
       const methodQ = paymentMethod ? `&paymentMethod=${paymentMethod}` : "";
       const q = await api<QuoteResult>(
         `/api/quotes?sourceCurrency=${currency}&destCurrency=USD&amount=${n}${methodQ}`,
       );
       setQuote(q);
+      setError("");
       if (!paymentMethod && q.paymentMethod) setPaymentMethod(q.paymentMethod);
-    } catch (e) {
+    } catch {
+      // Quote is optional for starting a deposit; show amount as a provisional credit for USD.
       setQuote(null);
-      handleApiError(e, (msg) => setError(msg || t("quoteFailed")));
     } finally {
       setQuoting(false);
     }
@@ -84,7 +84,9 @@ export function WalletDepositPage() {
   }
 
   const sourceMinor = Math.round(Number(amount || 0) * 100);
-  const creditMinor = quote?.usdcOutMinor ?? null;
+  const creditMinor =
+    quote?.usdcOutMinor ?? (currency === "USD" && sourceMinor > 0 ? sourceMinor : null);
+  const estimateProvisional = !quote && creditMinor != null;
 
   return (
     <div className="px-container-margin py-lg flex flex-col gap-lg max-w-md mx-auto w-full">
@@ -133,13 +135,17 @@ export function WalletDepositPage() {
           <div>
             <p className="font-label-md text-label-md text-on-surface-variant">{t("walletCredits")}</p>
             <p className="font-display-md text-display-md text-primary m-0">
-              {quoting || creditMinor == null
+              {quoting && !creditMinor
                 ? "…"
-                : formatMoney(creditMinor, "USD", i18n.language)}
+                : creditMinor == null
+                  ? "…"
+                  : formatMoney(creditMinor, "USD", i18n.language)}
             </p>
-            {quote?.provider && (
+            {(quote?.provider || estimateProvisional) && (
               <p className="font-label-md text-label-md text-outline mt-xs mb-0">
-                {humanizeId(quote.provider)}
+                {estimateProvisional
+                  ? t("estimateFinalAtCheckout")
+                  : humanizeId(quote!.provider)}
                 {sourceMinor > 0 && currency !== "USD"
                   ? ` · ${formatMoney(sourceMinor, currency, i18n.language)}`
                   : null}
@@ -179,7 +185,7 @@ export function WalletDepositPage() {
 
       <PrimaryButton
         onClick={startDeposit}
-        disabled={loading || quoting || !quote || !amount || Number(amount) <= 0}
+        disabled={loading || !amount || Number(amount) <= 0}
       >
         {loading ? "…" : t("continueToPayment")}
       </PrimaryButton>

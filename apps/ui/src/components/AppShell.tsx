@@ -46,10 +46,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       dir={rtl ? "rtl" : "ltr"}
-      className="min-h-dvh bg-surface-dim md:bg-[linear-gradient(160deg,#dce9ff_0%,#f8f9ff_45%,#e8fff4_100%)] md:flex md:justify-center md:items-stretch"
+      className="h-dvh max-h-dvh overflow-hidden bg-surface-dim md:bg-[linear-gradient(160deg,#dce9ff_0%,#f8f9ff_45%,#e8fff4_100%)] md:flex md:justify-center md:items-stretch"
     >
-      <div className="app-frame w-full max-w-[430px] min-h-dvh mx-auto bg-background text-on-background flex flex-col font-body-md md:shadow-[0_0_0_1px_rgba(11,28,48,0.06),0_24px_64px_rgba(11,28,48,0.14)] md:relative overflow-x-hidden">
-        <header className="w-full sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-outline-variant/20 flex items-center justify-between px-container-margin h-14 z-40 shrink-0">
+      <div className="app-frame w-full max-w-[430px] h-dvh max-h-dvh mx-auto bg-background text-on-background flex flex-col font-body-md md:shadow-[0_0_0_1px_rgba(11,28,48,0.06),0_24px_64px_rgba(11,28,48,0.14)] md:relative overflow-hidden">
+        <header className="w-full bg-surface/95 backdrop-blur-sm border-b border-outline-variant/20 flex items-center justify-between px-container-margin h-14 z-40 shrink-0">
           {showBack ? (
             <button
               type="button"
@@ -94,10 +94,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        <main className={`flex-1 min-h-0 ${hideNav ? "pb-lg" : "pb-20"}`}>{children}</main>
+        <main className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain ${hideNav ? "pb-lg" : "pb-md"}`}>
+          {children}
+        </main>
 
         {!hideNav && (
-          <nav className="sticky bottom-0 z-50 mt-auto bg-surface-container-lowest shadow-[0_-2px_8px_rgba(11,28,48,0.1)] h-16 flex justify-around items-center shrink-0">
+          <nav className="z-50 shrink-0 bg-surface-container-lowest shadow-[0_-2px_8px_rgba(11,28,48,0.1)] h-16 flex justify-around items-center">
             <Tab to="/" icon="account_balance_wallet" label={t("wallet")} end />
             <Tab to="/transfer" icon="swap_horiz" label={t("transfer")} />
             <Tab to="/history" icon="history" label={t("history")} />

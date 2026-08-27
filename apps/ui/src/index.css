@@ -131,7 +131,9 @@
 
 body {
   margin: 0;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: var(--color-surface);
   color: var(--color-on-surface);
   font-family: Inter, system-ui, sans-serif;
@@ -141,8 +143,15 @@ body {
 }
 
 html {
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
   touch-action: manipulation;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Prevent iOS input focus zoom (requires ≥16px) */
