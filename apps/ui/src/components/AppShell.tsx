@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               type="button"
               className="flex items-center justify-center px-2 py-1 rounded-lg hover:bg-surface-container-low/80 active:scale-[0.99] transition-all"
               onClick={() => navigate("/")}
-              aria-label="IraniPay"
+              aria-label={t("appName")}
             >
               <BrandLogo variant="full" />
             </button>
@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             type="button"
             className="w-10 h-10 -me-2 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-colors"
             onClick={() => navigate("/")}
-            aria-label="IraniPay home"
+            aria-label={t("appName")}
           >
             <BrandLogo variant="mark" className="opacity-90" />
           </button>
