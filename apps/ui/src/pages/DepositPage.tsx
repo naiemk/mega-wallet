@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useApiErrorHandler } from "../lib/use-api-error";
 import { formatMoney, humanizeId, shortRef } from "../lib/format";
-import { withTcCheckoutParams } from "../lib/tc-pay-url";
 import { useTransferWizard } from "../lib/transfer-wizard";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -124,18 +123,6 @@ export function DepositPage() {
     }
   }
 
-  function openStandalone() {
-    if (!draft.depositPayUrl) return;
-    window.open(
-      withTcCheckoutParams(draft.depositPayUrl, {
-        language: i18n.language,
-        mode: "standalone",
-      }),
-      "_blank",
-      "noopener,noreferrer",
-    );
-  }
-
   function onTouchStart(e: React.TouchEvent) {
     if (window.scrollY <= 0) touchStartY.current = e.touches[0]?.clientY ?? null;
   }
@@ -246,10 +233,7 @@ export function DepositPage() {
 
       {draft.depositPayUrl && (
         <section className="flex flex-col gap-sm">
-          <TcPayEmbed payUrl={draft.depositPayUrl} minHeight={680} />
-          <PrimaryButton variant="surface" onClick={openStandalone}>
-            {t("openPaymentNewTab")}
-          </PrimaryButton>
+          <TcPayEmbed payUrl={draft.depositPayUrl} />
         </section>
       )}
 

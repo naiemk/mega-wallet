@@ -313,22 +313,30 @@ export class TrustlessCommerceAdapter implements OnRampPort {
       return { externalId, payUrl: "", status: "failed" };
     }
 
+    // TC returns either a nested `{ invoice, payLink }` or a flat invoice document.
     const data = (await res.json()) as {
       invoice?: { status?: string; id?: string; lang?: string };
       payLink?: string;
+      status?: string;
+      id?: string;
+      lang?: string;
     };
+    const invoice = data.invoice ?? data;
     const statusMap: Record<string, DepositSession["status"]> = {
       awaiting_payment: "awaiting_payment",
       created: "awaiting_payment",
       paid: "paid",
       paid_partial: "paid_partial",
       swept: "paid",
+      expired: "expired",
+      cancelled: "expired",
+      canceled: "expired",
     };
-    const raw = data.invoice?.status ?? "awaiting_payment";
+    const raw = (invoice.status ?? "awaiting_payment").toLowerCase();
     return {
-      externalId,
+      externalId: invoice.id ?? externalId,
       payUrl: absolutePayUrl(this.config.baseUrl, data.payLink, externalId, {
-        lang: normalizeTcLang(data.invoice?.lang),
+        lang: normalizeTcLang(invoice.lang),
         header: "none",
       }),
       status: statusMap[raw] ?? "awaiting_payment",

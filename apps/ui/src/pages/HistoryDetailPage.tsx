@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
 import { humanPhase } from "../lib/phase";
-import { withTcCheckoutParams } from "../lib/tc-pay-url";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -35,7 +34,7 @@ function kindOf(tx: TransferDetail) {
 }
 
 export function HistoryDetailPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [transfer, setTransfer] = useState<TransferDetail | null>(null);
@@ -43,9 +42,31 @@ export function HistoryDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    void api<{ transfer: TransferDetail }>(`/api/transfers/${id}`)
-      .then((d) => setTransfer(d.transfer))
-      .catch((e) => setError(translateApiError(e, t)));
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    async function load() {
+      if (cancelled || !id) return;
+      try {
+        const d = await api<{ transfer: TransferDetail }>(`/api/transfers/${id}`);
+        if (cancelled) return;
+        setTransfer(d.transfer);
+        setError("");
+        if (d.transfer.phase !== "depositing" && timer) {
+          clearInterval(timer);
+          timer = undefined;
+        }
+      } catch (e) {
+        if (!cancelled) setError(translateApiError(e, t));
+      }
+    }
+
+    void load();
+    timer = setInterval(() => void load(), 2500);
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   }, [id, t]);
 
   if (error) {
@@ -128,22 +149,7 @@ export function HistoryDetailPage() {
 
       {transfer.depositPayUrl && transfer.phase === "depositing" && (
         <section className="flex flex-col gap-sm">
-          <TcPayEmbed payUrl={transfer.depositPayUrl} minHeight={640} />
-          <PrimaryButton
-            variant="surface"
-            onClick={() =>
-              window.open(
-                withTcCheckoutParams(transfer.depositPayUrl!, {
-                  language: i18n.language,
-                  mode: "standalone",
-                }),
-                "_blank",
-                "noopener,noreferrer",
-              )
-            }
-          >
-            {t("openPaymentNewTab")}
-          </PrimaryButton>
+          <TcPayEmbed payUrl={transfer.depositPayUrl} />
         </section>
       )}
 

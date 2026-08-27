@@ -9,6 +9,7 @@ export function humanPhase(phase: string, t: (key: string) => string): string {
     withdraw_executed: t("phaseWithdrawExecuted"),
     withdraw_cancelled: t("phaseWithdrawCancelled"),
     need_attention: t("phaseNeedAttention"),
+    quote_expired: t("phaseQuoteExpired"),
   };
   return map[phase] ?? phase.replace(/_/g, " ");
 }

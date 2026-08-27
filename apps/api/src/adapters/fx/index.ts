@@ -211,12 +211,16 @@ export class NobitexFxProvider implements TargetRateProvider {
 
   async fetchUsdtIrr(): Promise<number | null> {
     try {
-      const res = await fetch("https://api.nobitex.ir/market/stats?srcCurrency=usdt&dstCurrency=rls");
+      // Nobitex usdt-rls quotes in rials (not toman).
+      const res = await fetch(
+        "https://apiv2.nobitex.ir/market/stats?srcCurrency=usdt&dstCurrency=rls",
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as { stats?: { "usdt-rls"?: { latest?: string } } };
       const latest = data.stats?.["usdt-rls"]?.latest;
       if (!latest) return null;
-      return Math.round(Number(latest) / 10);
+      const rials = Math.round(Number(latest));
+      return Number.isFinite(rials) && rials > 0 ? rials : null;
     } catch {
       return null;
     }
@@ -228,14 +232,16 @@ export class WallexFxProvider implements TargetRateProvider {
 
   async fetchUsdtIrr(): Promise<number | null> {
     try {
-      const res = await fetch("https://api.wallex.ir/hector/web/v1/markets");
+      // USDTTMN lastPrice is in toman → convert to rials.
+      const res = await fetch("https://api.wallex.ir/v1/markets");
       if (!res.ok) return null;
       const data = (await res.json()) as {
-        result?: { markets?: Array<{ symbol: string; stats?: { lastPrice?: string } }> };
+        result?: { symbols?: Record<string, { stats?: { lastPrice?: string } }> };
       };
-      const market = data.result?.markets?.find((m) => m.symbol === "USDTTMN");
-      const price = market?.stats?.lastPrice;
-      return price ? Math.round(Number(price) * 10) : null;
+      const price = data.result?.symbols?.USDTTMN?.stats?.lastPrice;
+      if (!price) return null;
+      const rials = Math.round(Number(price) * 10);
+      return Number.isFinite(rials) && rials > 0 ? rials : null;
     } catch {
       return null;
     }
@@ -247,11 +253,14 @@ export class BitpinFxProvider implements TargetRateProvider {
 
   async fetchUsdtIrr(): Promise<number | null> {
     try {
-      const res = await fetch("https://api.bitpin.org/api/v1/mkt/markets/");
+      // Tickers quote USDT_IRT in toman → convert to rials.
+      const res = await fetch("https://api.bitpin.org/api/v1/mkt/tickers/");
       if (!res.ok) return null;
-      const data = (await res.json()) as Array<{ code?: string; price?: string }>;
-      const market = data.find((m) => m.code === "USDT_IRT");
-      return market?.price ? Math.round(Number(market.price) * 10) : null;
+      const data = (await res.json()) as Array<{ symbol?: string; price?: string }>;
+      const market = data.find((m) => m.symbol === "USDT_IRT");
+      if (!market?.price) return null;
+      const rials = Math.round(Number(market.price) * 10);
+      return Number.isFinite(rials) && rials > 0 ? rials : null;
     } catch {
       return null;
     }
