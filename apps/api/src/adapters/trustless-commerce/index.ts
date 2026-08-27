@@ -155,24 +155,36 @@ export class TrustlessCommerceAdapter implements OnRampPort {
     if (this.fakeMode) return this.fake.quote(input);
 
     const fiatAmount = (input.amountMinor / 100).toFixed(2);
-    const params = new URLSearchParams({
-      fiat: input.sourceCurrency.toUpperCase(),
-      direction: "pay",
-      fiatAmount,
-      country: input.country.toLowerCase(),
-      chains: TESTNET_CHAINS_QUERY,
-      tokens: TESTNET_TOKENS_QUERY,
-      slippageBps: String(this.config.slippageBps ?? 100),
-    });
-    if (input.paymentMethod) params.set("paymentMethod", input.paymentMethod);
+    const buildParams = (includeMethod: boolean) => {
+      const params = new URLSearchParams({
+        fiat: input.sourceCurrency.toUpperCase(),
+        direction: "pay",
+        fiatAmount,
+        country: input.country.toLowerCase(),
+        chains: TESTNET_CHAINS_QUERY,
+        tokens: TESTNET_TOKENS_QUERY,
+        slippageBps: String(this.config.slippageBps ?? 100),
+      });
+      if (includeMethod && input.paymentMethod) params.set("paymentMethod", input.paymentMethod);
+      return params;
+    };
 
-    const res = await this.fetchWithRetry(
-      `${this.config.baseUrl}/api/public/onramp-quote?${params}`,
+    let res = await this.fetchWithRetry(
+      `${this.config.baseUrl}/api/public/onramp-quote?${buildParams(true)}`,
       undefined,
       "quote",
     );
+    // Some paymentMethod values make Onramper return 502; retry without method.
+    if (!res.ok && input.paymentMethod) {
+      res = await this.fetchWithRetry(
+        `${this.config.baseUrl}/api/public/onramp-quote?${buildParams(false)}`,
+        undefined,
+        "quote",
+      );
+    }
     if (!res.ok) {
-      throw new Error(`TC quote failed: ${res.status}`);
+      const text = await res.text().catch(() => "");
+      throw new Error(`TC quote failed: ${res.status}${text ? ` ${text.slice(0, 180)}` : ""}`);
     }
     const data = (await res.json()) as TcQuoteResponse;
     const rows =
@@ -180,7 +192,16 @@ export class TrustlessCommerceAdapter implements OnRampPort {
         ? data.quotes
         : data.recommended
           ? [data.recommended]
-          : [];
+          : data.cryptoAmount
+            ? [
+                {
+                  provider: data.provider,
+                  paymentMethod: data.paymentMethod,
+                  fiatAmount: data.fiatAmount ?? fiatAmount,
+                  cryptoAmount: data.cryptoAmount,
+                },
+              ]
+            : [];
 
     return rows.map((row) => {
       const crypto = row.cryptoAmount ?? data.cryptoAmount ?? "0";

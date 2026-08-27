@@ -277,26 +277,38 @@ export function createApp(ctx: AppContext) {
       let provider = body.provider;
       let paymentMethod = body.paymentMethod;
 
-      // Always quote via TC for fiat deposits so settlement USDC is accurate
+      // Prefer a live TC quote for settlement USDC; invoice create still quotes if this fails.
       if (body.paymentMode !== "crypto") {
-        const q = await ctx.quotes.createQuote({
-          sourceCurrency,
-          destCurrency: "USD",
-          sourceAmountMinor,
-          paymentMethod: body.paymentMethod,
-          country: "US",
-          userId: session.user.id,
-          lastSuccessfulPaymentMethod: profile?.lastSuccessfulPaymentMethod,
-          lastAttemptedPaymentMethod: profile?.lastAttemptedPaymentMethod,
-        });
-        usd = q.usdcOutMinor;
-        provider = provider ?? q.provider;
-        paymentMethod = paymentMethod ?? q.paymentMethod;
+        try {
+          const q = await ctx.quotes.createQuote({
+            sourceCurrency,
+            destCurrency: "USD",
+            sourceAmountMinor,
+            paymentMethod: body.paymentMethod,
+            country: "US",
+            userId: session.user.id,
+            lastSuccessfulPaymentMethod: profile?.lastSuccessfulPaymentMethod,
+            lastAttemptedPaymentMethod: profile?.lastAttemptedPaymentMethod,
+          });
+          usd = q.usdcOutMinor;
+          provider = provider ?? q.provider;
+          paymentMethod = paymentMethod ?? q.paymentMethod;
+        } catch {
+          // TC public quote is flaky; start deposit with fiat amount and let invoice create quote.
+          if (usd == null && sourceCurrency.toUpperCase() === "USD") {
+            usd = sourceAmountMinor;
+          }
+          paymentMethod = paymentMethod ?? "creditcard";
+        }
       } else if (usd == null) {
         usd = sourceAmountMinor;
       }
 
-      if (usd == null) return c.json({ error: "amountUsdCents or amountMinor required" }, 400);
+      if (usd == null) {
+        // Non-USD without a quote: use source amount as provisional USDC; TC invoice revises price.
+        usd = sourceAmountMinor;
+        paymentMethod = paymentMethod ?? "creditcard";
+      }
 
       const result = await ctx.transfers.startWalletDeposit(session.user.id, {
         amountUsdCents: usd,
