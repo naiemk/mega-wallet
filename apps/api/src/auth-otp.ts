@@ -64,13 +64,66 @@ export async function sendOtpEmail(
     body: JSON.stringify({
       from: config.resendFrom,
       to: data.email,
-      subject: "Your Mega Wallet verification code",
+      subject: "Your Pool Begir verification code",
       text: `Your verification code is ${data.otp}. It expires in 5 minutes.`,
     }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`Resend failed (${res.status}): ${body}`);
+  }
+}
+
+export async function sendOperatorEmail(
+  config: Pick<AppConfig, "authEmailMode" | "resendApiKey" | "resendFrom" | "operatorSettlementEmail">,
+  data: {
+    transferId: string;
+    userId: string;
+    usdAmountCents: number;
+    destAmountMinor: number;
+    recipientName: string;
+    recipientSheba: string;
+  },
+): Promise<void> {
+  const to = config.operatorSettlementEmail.trim();
+  if (!to) return;
+
+  const usd = (data.usdAmountCents / 100).toFixed(2);
+  const subject = `Recipient settlement required — ${data.transferId}`;
+  const text = [
+    "A remittance deposit settled and needs recipient payout.",
+    "",
+    `Transfer ID: ${data.transferId}`,
+    `User ID: ${data.userId}`,
+    `USD credited: $${usd}`,
+    `Dest amount (minor): ${data.destAmountMinor}`,
+    `Recipient: ${data.recipientName}`,
+    `Sheba: ${data.recipientSheba}`,
+    "",
+    "Mark the trade settled in the operator dashboard when payout is complete.",
+  ].join("\n");
+
+  if (config.authEmailMode === "console" || !config.resendApiKey) {
+    console.log(`[operator-email] to=${to}\n${subject}\n${text}`);
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: config.resendFrom,
+      to,
+      subject,
+      text,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend operator email failed (${res.status}): ${body}`);
   }
 }
 

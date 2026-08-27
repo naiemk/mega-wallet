@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
-import { translateApiError } from "../lib/api-error";
+import { useApiErrorHandler } from "../lib/use-api-error";
 import { formatMoney, humanizeId, shortRef } from "../lib/format";
 import { withTcCheckoutParams } from "../lib/tc-pay-url";
 import { useTransferWizard } from "../lib/transfer-wizard";
@@ -12,16 +12,27 @@ import { Stepper } from "../components/Stepper";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { TcPayEmbed } from "../components/TcPayEmbed";
 
+const SETTLED_PHASES = new Set([
+  "deposited",
+  "recipient_set",
+  "withdraw_initiated",
+  "need_attention",
+  "withdraw_executed",
+]);
+
 export function DepositPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const handleApiError = useApiErrorHandler();
   const { draft, setDraft } = useTransferWizard();
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
   const [fakeRamps, setFakeRamps] = useState(false);
   const [statusHint, setStatusHint] = useState("");
+  const [pullY, setPullY] = useState(0);
   const startedRef = useRef(false);
+  const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     void api<{ fakeRamps?: boolean }>("/api/health")
@@ -32,6 +43,10 @@ export function DepositPage() {
   useEffect(() => {
     if (!draft.quoteId) {
       navigate("/transfer");
+      return;
+    }
+    if (!draft.recipientName || !draft.recipientSheba) {
+      navigate("/transfer/recipient");
       return;
     }
     if (draft.transferId || startedRef.current) return;
@@ -54,27 +69,22 @@ export function DepositPage() {
     try {
       const result = await api<{ transferId: string; deposit: { payUrl: string } }>("/api/transfers", {
         method: "POST",
-        body: JSON.stringify({ quoteId: draft.quoteId, language: i18n.language }),
+        body: JSON.stringify({
+          quoteId: draft.quoteId,
+          language: i18n.language,
+          recipient: { name: draft.recipientName, sheba: draft.recipientSheba },
+        }),
       });
       setDraft({
         transferId: result.transferId,
         depositPayUrl: result.deposit.payUrl,
       });
     } catch (e) {
-      setError(translateApiError(e, t));
+      handleApiError(e, setError);
       startedRef.current = false;
     } finally {
       setStarting(false);
     }
-  }
-
-  async function setRecipientAndGo() {
-    if (!draft.transferId) return;
-    await api(`/api/transfers/${draft.transferId}/recipient`, {
-      method: "POST",
-      body: JSON.stringify({ name: draft.recipientName, sheba: draft.recipientSheba }),
-    });
-    navigate("/transfer/status");
   }
 
   async function pollAndAdvance(silent = false): Promise<boolean> {
@@ -88,33 +98,29 @@ export function DepositPage() {
       const row = await api<{ transfer: { id: string; phase: string } }>(
         `/api/transfers/${draft.transferId}`,
       );
-      if (row.transfer.phase === "deposited" || row.transfer.phase === "recipient_set") {
-        if (row.transfer.phase === "deposited") {
-          await setRecipientAndGo();
-        } else {
-          navigate("/transfer/status");
-        }
+      if (SETTLED_PHASES.has(row.transfer.phase)) {
+        navigate("/transfer/status");
         return true;
       }
       if (!silent) setStatusHint(t("waitingForPayment"));
       return false;
     } catch (e) {
-      if (!silent) setError(translateApiError(e, t));
+      if (!silent) handleApiError(e, setError);
       return false;
     } finally {
       if (!silent) setChecking(false);
     }
   }
 
-  async function confirmPaid() {
-    if (!draft.transferId) return;
+  async function refreshStatus() {
     const done = await pollAndAdvance(false);
-    if (done || !fakeRamps) return;
+    if (done || !fakeRamps || !draft.transferId) return;
     try {
       await api(`/api/dev/simulate-deposit/${draft.transferId}`, { method: "POST" });
-      await setRecipientAndGo();
+      await pollAndAdvance(true);
+      navigate("/transfer/status");
     } catch (e) {
-      setError(translateApiError(e, t));
+      handleApiError(e, setError);
     }
   }
 
@@ -128,6 +134,22 @@ export function DepositPage() {
       "_blank",
       "noopener,noreferrer",
     );
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (window.scrollY <= 0) touchStartY.current = e.touches[0]?.clientY ?? null;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (touchStartY.current == null) return;
+    const dy = (e.touches[0]?.clientY ?? 0) - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy, 96));
+  }
+
+  function onTouchEnd() {
+    if (pullY > 64) void pollAndAdvance(false);
+    touchStartY.current = null;
+    setPullY(0);
   }
 
   const payMinor =
@@ -161,7 +183,18 @@ export function DepositPage() {
   ];
 
   return (
-    <div className="px-container-margin py-lg flex flex-col gap-lg min-h-[calc(100dvh-3rem)] max-w-xl mx-auto w-full pb-28">
+    <div
+      className="px-container-margin py-lg flex flex-col gap-lg min-h-[calc(100dvh-3.5rem)] w-full pb-4"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {pullY > 8 && (
+        <p className="font-label-md text-label-md text-outline text-center m-0">
+          {pullY > 64 ? t("releaseToRefresh") : t("pullToRefresh")}
+        </p>
+      )}
+
       <Stepper steps={[t("recipient"), t("stepDeposit"), t("status")]} activeIndex={1} />
 
       <section className="bg-primary rounded-xl p-md shadow-lg flex flex-col items-center justify-center gap-xs relative overflow-hidden text-center">
@@ -225,14 +258,14 @@ export function DepositPage() {
         <p className="font-body-md text-body-md text-on-surface-variant text-center">{statusHint}</p>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 bg-surface-container-lowest p-container-margin shadow-[0_-4px_12px_rgba(11,28,48,0.05)] z-20 max-w-xl mx-auto">
+      <div className="app-dock">
         <PrimaryButton
           variant="surface"
-          onClick={confirmPaid}
+          onClick={() => void refreshStatus()}
           disabled={starting || checking || !draft.transferId}
         >
-          {checking ? t("checkingStatus") : t("iMadeTransfer")}
-          <Icon name="arrow_forward" />
+          {checking ? t("checkingStatus") : t("refreshStatus")}
+          <Icon name="refresh" />
         </PrimaryButton>
       </div>
     </div>

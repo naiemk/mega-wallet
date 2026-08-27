@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pool Begir">
+  <rect width="64" height="64" rx="14" fill="#0B1220"/>
+  <!-- Revolut-inspired geometric P with forward slash motion -->
+  <path fill="#FFFFFF" d="M18 14h18.5c9.2 0 15.5 5.4 15.5 13.6 0 8.3-6.3 13.6-15.5 13.6H28v8.8H18V14zm10 8.2v10.8h7.6c4.4 0 7.1-2.3 7.1-5.4 0-3.1-2.7-5.4-7.1-5.4H28z"/>
+  <path fill="#7CFFB2" d="M42.5 46.5L52 37l2.2 2.2-9.5 9.5H52V52H38.5v-5.5h4z"/>
+</svg>

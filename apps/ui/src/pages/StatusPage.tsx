@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiOptional } from "../lib/api";
@@ -33,14 +33,24 @@ export function StatusPage() {
   const navigate = useNavigate();
   const { draft, reset } = useTransferWizard();
   const [transfer, setTransfer] = useState<Transfer | null>(null);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     void refresh();
     const timer = setInterval(() => void refresh(), 5000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refresh() {
+    if (draft.transferId) {
+      const byId = await apiOptional<{ transfer: Transfer }>(`/api/transfers/${draft.transferId}`);
+      if (byId?.transfer) {
+        setTransfer(byId.transfer);
+        return;
+      }
+    }
     const a = await apiOptional<{ transfer: Transfer | null }>("/api/transfers/active");
     if (a?.transfer) {
       setTransfer(a.transfer);
@@ -52,18 +62,81 @@ export function StatusPage() {
     setTransfer(found);
   }
 
+  function onTouchStart(e: React.TouchEvent) {
+    if (window.scrollY <= 0) touchStartY.current = e.touches[0]?.clientY ?? null;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (touchStartY.current == null) return;
+    const dy = (e.touches[0]?.clientY ?? 0) - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy, 96));
+  }
+
+  function onTouchEnd() {
+    if (pullY > 64) void refresh();
+    touchStartY.current = null;
+    setPullY(0);
+  }
+
   const phase = transfer?.phase ?? "depositing";
   const idx = timelineIndex(phase);
+  const done = phase === "withdraw_executed";
+  const pendingSettlement =
+    phase === "withdraw_initiated" || phase === "need_attention" || phase === "recipient_set";
+
   const items = [
     { title: t("statusCreated"), done: idx >= 0 },
-    { title: t("statusDeposited"), done: idx >= 1 },
-    { title: t("statusSending"), done: idx >= 2, active: idx === 2 },
+    { title: t("statusMoneyReceived"), done: idx >= 1 },
+    {
+      title: t("statusPendingSettlement"),
+      done: idx >= 3,
+      active: pendingSettlement,
+    },
     { title: t("statusArrival"), done: idx >= 3 },
   ];
 
   return (
-    <div className="px-container-margin py-lg flex flex-col gap-lg pb-28">
+    <div
+      className="px-container-margin py-lg flex flex-col gap-lg pb-28"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {pullY > 8 && (
+        <p className="font-label-md text-label-md text-outline text-center m-0">
+          {pullY > 64 ? t("releaseToRefresh") : t("pullToRefresh")}
+        </p>
+      )}
+
       <Stepper steps={[t("recipient"), t("stepDeposit"), t("status")]} activeIndex={2} />
+
+      {done && (
+        <SurfaceCard className="p-md text-center space-y-sm">
+          <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
+            <Icon name="check_circle" filled />
+          </div>
+          <h2 className="font-display-md-mobile text-display-md-mobile text-primary m-0">
+            {t("transferComplete")}
+          </h2>
+          <p className="font-body-md text-body-md text-on-surface-variant m-0">
+            {t("transferCompleteHint")}
+          </p>
+        </SurfaceCard>
+      )}
+
+      {!done && pendingSettlement && (
+        <SurfaceCard className="p-md text-center space-y-sm">
+          <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center bg-surface-container text-primary">
+            <Icon name="hourglass_top" />
+          </div>
+          <h2 className="font-display-md-mobile text-display-md-mobile text-primary m-0">
+            {t("statusMoneyReceived")}
+          </h2>
+          <p className="font-body-md text-body-md text-on-surface-variant m-0">
+            {t("statusPendingSettlementHint")}
+          </p>
+        </SurfaceCard>
+      )}
 
       <SurfaceCard className="p-md">
         <div className="relative ms-6 border-s-2 border-surface-variant ps-md space-y-lg py-sm">
@@ -85,7 +158,9 @@ export function StatusPage() {
                 {item.title}
               </span>
               {item.active && (
-                <span className="font-label-md text-label-md text-outline">{t("statusSendingHint")}</span>
+                <span className="font-label-md text-label-md text-outline">
+                  {t("statusPendingSettlementHint")}
+                </span>
               )}
             </div>
           ))}
@@ -116,7 +191,12 @@ export function StatusPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 bg-surface-container-lowest p-container-margin shadow-[0_-4px_12px_rgba(11,28,48,0.05)] z-20 max-w-xl mx-auto">
+      <PrimaryButton variant="surface" onClick={() => void refresh()}>
+        {t("refreshStatus")}
+        <Icon name="refresh" />
+      </PrimaryButton>
+
+      <div className="app-dock">
         <PrimaryButton
           onClick={() => {
             reset();

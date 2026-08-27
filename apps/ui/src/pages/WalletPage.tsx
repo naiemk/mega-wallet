@@ -53,7 +53,10 @@ export function WalletPage() {
   const hasReserved = reserved !== "0.00";
 
   return (
-    <div className="px-container-margin py-lg flex flex-col gap-lg max-w-xl mx-auto w-full">
+    <div className="px-container-margin py-lg flex flex-col gap-lg w-full">
+      <p className="font-body-md text-body-md text-on-surface-variant m-0 -mt-xs">
+        {t("appSubtitle")}
+      </p>
       <section className="bg-primary rounded-xl p-lg text-on-primary shadow-[0_4px_16px_rgba(0,10,30,0.15)] flex flex-col gap-md relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-10 pointer-events-none"

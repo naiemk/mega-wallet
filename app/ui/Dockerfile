@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY branding.yaml ./branding.yaml
 COPY apps/ui ./apps/ui
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 RUN pnpm install --frozen-lockfile

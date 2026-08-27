@@ -30,8 +30,6 @@ autoUpdate:
 gateway:
   nginxImage: nginx:alpine
   sites:
-    - host: wallet.example.com
-      aliases:
-        - www.wallet.example.com
+    - host: pool.trustless-commerce.com
       healthPath: /api/health
-      tlsCertDir: /etc/letsencrypt/live/wallet.example.com
+      tlsCertDir: /etc/letsencrypt/live/trustless-commerce.com

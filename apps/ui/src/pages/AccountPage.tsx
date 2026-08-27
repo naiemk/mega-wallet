@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, apiOptional } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
+import { consumeReturnTo } from "../lib/auth-redirect";
 import { authClient } from "../lib/auth-client";
 import { completePasskeySignIn } from "../lib/passkey-auth";
 import {
@@ -38,6 +39,7 @@ function webAuthnAvailable(): boolean {
 export function AccountPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [step, setStep] = useState<AuthStep>("credentials");
   const [email, setEmail] = useState("");
@@ -50,12 +52,25 @@ export function AccountPage() {
   const [passkeyHint, setPasskeyHint] = useState(false);
   const [supportsPasskey, setSupportsPasskey] = useState(true);
 
+  function goAfterAuth() {
+    const next = consumeReturnTo(location.search);
+    if (next) {
+      navigate(next, { replace: true });
+      return true;
+    }
+    return false;
+  }
+
   useEffect(() => {
     const saved = getSavedAuthEmail();
     if (saved) setEmail(saved);
     setPasskeyHint(getSavedPasskeyHint());
     setSupportsPasskey(webAuthnAvailable());
-    void apiOptional<Me>("/api/me").then(setProfile);
+    void apiOptional<Me>("/api/me").then((me) => {
+      setProfile(me);
+      if (me?.user) goAfterAuth();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function finishPasskeySignIn() {
@@ -80,6 +95,7 @@ export function AccountPage() {
       }
       setMessage(t("signedIn"));
       setStep("credentials");
+      goAfterAuth();
     } catch (e) {
       console.error("[passkey] sign-in failed", e);
       setMessage(translateApiError(e, t));
@@ -153,6 +169,7 @@ export function AccountPage() {
       } else {
         setStep("credentials");
         setOtp("");
+        goAfterAuth();
       }
     } catch (e) {
       setMessage(translateApiError(e, t));
@@ -332,6 +349,7 @@ export function AccountPage() {
                   setStep("credentials");
                   setOtp("");
                   setMessage(t("passkeySkipped"));
+                  goAfterAuth();
                 }}
               >
                 {t("skipForNow")}
@@ -339,10 +357,18 @@ export function AccountPage() {
             </SurfaceCard>
           )}
           {step === "enroll-passkey" && !supportsPasskey && (
-            <SurfaceCard className="p-md">
+            <SurfaceCard className="p-md flex flex-col gap-md">
               <p className="font-body-md text-body-md text-on-surface-variant m-0">
                 {t("passkeyUnavailable")}
               </p>
+              <PrimaryButton
+                onClick={() => {
+                  setStep("credentials");
+                  goAfterAuth();
+                }}
+              >
+                {t("continue")}
+              </PrimaryButton>
             </SurfaceCard>
           )}
 

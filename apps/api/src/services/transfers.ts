@@ -13,6 +13,9 @@ import type { LedgerService } from "./ledger.js";
 import type { FakeOnRampAdapter } from "../adapters/fake/on-ramp.js";
 import type { OffRampRegistry } from "../adapters/offramp/registry.js";
 import type { AppConfig } from "../config.js";
+import { sendOperatorEmail } from "../auth-otp.js";
+
+type TransferRow = typeof transfers.$inferSelect;
 
 export class TransferService {
   constructor(
@@ -22,7 +25,15 @@ export class TransferService {
     private readonly ledger: LedgerService,
     private readonly fx: FxOraclePort,
     private readonly fakeOnRamp?: FakeOnRampAdapter,
-    private readonly config?: Pick<AppConfig, "publicApiUrl" | "slippageBps">,
+    private readonly config?: Pick<
+      AppConfig,
+      | "publicApiUrl"
+      | "slippageBps"
+      | "authEmailMode"
+      | "resendApiKey"
+      | "resendFrom"
+      | "operatorSettlementEmail"
+    >,
   ) {}
 
   async getTransfer(id: string) {
@@ -51,12 +62,21 @@ export class TransferService {
     return row ?? null;
   }
 
-  async startTransfer(userId: string, quoteId: string, language?: string) {
+  async startTransfer(
+    userId: string,
+    quoteId: string,
+    language?: string,
+    recipientInput?: { name: string; sheba: string },
+  ) {
     const [quote] = await this.db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1);
     if (!quote) throw new Error("Quote not found");
     if (quote.status !== "active" || quote.expiresAt < new Date()) {
       throw new Error("Quote expired");
     }
+
+    const recipient = recipientInput
+      ? parseShebaRecipient(recipientInput.name, recipientInput.sheba)
+      : null;
 
     const [profile] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     const lang = language ?? profile?.preferredLanguage ?? undefined;
@@ -95,6 +115,8 @@ export class TransferService {
       paymentMode: "fiat",
       usdAmountCents: quote.usdcOutMinor,
       destAmountMinor: quote.destOutMinor,
+      recipientName: recipient?.name ?? null,
+      recipientSheba: recipient?.sheba ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -123,7 +145,7 @@ export class TransferService {
   }
 
   /** Credit ledger once when invoice is paid (poll or webhook). */
-  async creditDepositIfNeeded(row: typeof transfers.$inferSelect) {
+  async creditDepositIfNeeded(row: TransferRow) {
     if (row.phase !== "depositing") return row;
 
     const kind = inferTransferKind(row.quoteId, row.kind);
@@ -156,7 +178,18 @@ export class TransferService {
     }
 
     const [updated] = await this.db.select().from(transfers).where(eq(transfers.id, row.id)).limit(1);
-    return updated ?? row;
+    const credited = updated ?? { ...row, phase: nextPhase };
+
+    if (
+      kind === "remittance" &&
+      credited.phase === "deposited" &&
+      credited.recipientName &&
+      credited.recipientSheba
+    ) {
+      return this.initiateRecipientPayout(credited);
+    }
+
+    return credited;
   }
 
   async handleDepositWebhook(externalId: string) {
@@ -166,7 +199,6 @@ export class TransferService {
       .where(eq(transfers.depositExternalId, externalId))
       .limit(1);
     if (!row) {
-      // Also match clientInvoiceId pattern via id suffix
       const byId = await this.db.select().from(transfers).orderBy(desc(transfers.updatedAt));
       const match = byId.find(
         (t) =>
@@ -181,15 +213,12 @@ export class TransferService {
     return this.creditDepositIfNeeded(row);
   }
 
-  async setRecipient(transferId: string, userId: string, name: string, sheba: string) {
-    const [row] = await this.db.select().from(transfers).where(eq(transfers.id, transferId)).limit(1);
-    if (!row || row.userId !== userId) throw new Error("Transfer not found");
-    if (row.phase !== "deposited") throw new Error("Deposit not complete");
-    if (inferTransferKind(row.quoteId, row.kind) !== "remittance") {
-      throw new Error("Recipient only for remittance transfers");
-    }
+  /** Start Sheba payout from deposited remittance that already has recipient fields. */
+  private async initiateRecipientPayout(row: TransferRow) {
+    if (row.phase !== "deposited") return row;
+    if (!row.recipientName || !row.recipientSheba) return row;
 
-    const recipient = parseShebaRecipient(name, sheba);
+    const recipient = parseShebaRecipient(row.recipientName, row.recipientSheba);
     const nextPhase = transitionTransfer("deposited", "recipient_set");
 
     await this.db
@@ -200,10 +229,10 @@ export class TransferService {
         recipientSheba: recipient.sheba,
         updatedAt: new Date(),
       })
-      .where(eq(transfers.id, transferId));
+      .where(eq(transfers.id, row.id));
 
     const payout = await this.offRamps.resolve("IRR").startPayout({
-      transferId,
+      transferId: row.id,
       usdcInMinor: row.usdAmountCents,
       recipient: { name: recipient.name, sheba: recipient.sheba },
       method: "sheba-irr",
@@ -218,16 +247,69 @@ export class TransferService {
         withdrawStatus: "initiated",
         updatedAt: new Date(),
       })
-      .where(eq(transfers.id, transferId));
+      .where(eq(transfers.id, row.id));
 
     await this.ledger.appendEvent({
       type: "withdraw_reserved",
-      userId,
+      userId: row.userId,
       amountUsdCents: row.usdAmountCents,
-      transferId,
+      transferId: row.id,
     });
 
-    return payout;
+    void this.notifyOperatorSettlement({
+      ...row,
+      recipientName: recipient.name,
+      recipientSheba: recipient.sheba,
+    }).catch((err) => {
+      console.error("[transfers] operator settlement email failed", err);
+    });
+
+    const [updated] = await this.db.select().from(transfers).where(eq(transfers.id, row.id)).limit(1);
+    return updated ?? row;
+  }
+
+  private async notifyOperatorSettlement(row: TransferRow) {
+    if (!this.config) return;
+    await sendOperatorEmail(this.config, {
+      transferId: row.id,
+      userId: row.userId,
+      usdAmountCents: row.usdAmountCents,
+      destAmountMinor: row.destAmountMinor,
+      recipientName: row.recipientName ?? "",
+      recipientSheba: row.recipientSheba ?? "",
+    });
+  }
+
+  async setRecipient(transferId: string, userId: string, name: string, sheba: string) {
+    const [row] = await this.db.select().from(transfers).where(eq(transfers.id, transferId)).limit(1);
+    if (!row || row.userId !== userId) throw new Error("Transfer not found");
+    if (row.phase !== "deposited") throw new Error("Deposit not complete");
+    if (inferTransferKind(row.quoteId, row.kind) !== "remittance") {
+      throw new Error("Recipient only for remittance transfers");
+    }
+
+    const recipient = parseShebaRecipient(name, sheba);
+    await this.db
+      .update(transfers)
+      .set({
+        recipientName: recipient.name,
+        recipientSheba: recipient.sheba,
+        updatedAt: new Date(),
+      })
+      .where(eq(transfers.id, transferId));
+
+    const [withRecipient] = await this.db
+      .select()
+      .from(transfers)
+      .where(eq(transfers.id, transferId))
+      .limit(1);
+    if (!withRecipient) throw new Error("Transfer not found");
+
+    const updated = await this.initiateRecipientPayout(withRecipient);
+    return {
+      externalId: updated.withdrawExternalId ?? "",
+      status: updated.withdrawStatus ?? "initiated",
+    };
   }
 
   async operatorMarkReceived(transferId: string, comment?: string, evidencePath?: string) {

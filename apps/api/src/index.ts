@@ -83,7 +83,14 @@ const transfers = new TransferService(
   ledger,
   fx,
   config.fakeRamps ? fakeOnRamp : undefined,
-  { publicApiUrl: config.publicApiUrl, slippageBps: config.slippageBps },
+  {
+    publicApiUrl: config.publicApiUrl,
+    slippageBps: config.slippageBps,
+    authEmailMode: config.authEmailMode,
+    resendApiKey: config.resendApiKey,
+    resendFrom: config.resendFrom,
+    operatorSettlementEmail: config.operatorSettlementEmail,
+  },
 );
 
 const app = createApp({ config, db, auth, quotes, transfers, ledger });

@@ -44,62 +44,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     /^\/history\/[^/]+$/.test(location.pathname);
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className="bg-background text-on-background min-h-dvh flex flex-col font-body-md">
-      <header className="w-full sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-outline-variant/20 flex items-center justify-between px-container-margin h-14 z-40">
-        {showBack ? (
-          <button
-            type="button"
-            className="w-10 h-10 -ms-2 flex items-center justify-center text-primary hover:opacity-80 active:scale-95 rounded-full"
-            onClick={() => navigate(-1)}
-            aria-label="Back"
-          >
-            <Icon name={rtl ? "arrow_forward" : "arrow_back"} />
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
-
-        {showWordmark ? (
-          <h1 className="absolute inset-x-0 mx-auto w-fit flex items-center justify-center m-0">
+    <div
+      dir={rtl ? "rtl" : "ltr"}
+      className="min-h-dvh bg-surface-dim md:bg-[linear-gradient(160deg,#dce9ff_0%,#f8f9ff_45%,#e8fff4_100%)] md:flex md:justify-center md:items-stretch"
+    >
+      <div className="app-frame w-full max-w-[430px] min-h-dvh mx-auto bg-background text-on-background flex flex-col font-body-md md:shadow-[0_0_0_1px_rgba(11,28,48,0.06),0_24px_64px_rgba(11,28,48,0.14)] md:relative overflow-x-hidden">
+        <header className="w-full sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-outline-variant/20 flex items-center justify-between px-container-margin h-14 z-40 shrink-0">
+          {showBack ? (
             <button
               type="button"
-              className="flex items-center justify-center px-2 py-1 rounded-lg hover:bg-surface-container-low/80 active:scale-[0.99] transition-all"
+              className="w-10 h-10 -ms-2 flex items-center justify-center text-primary hover:opacity-80 active:scale-95 rounded-full"
+              onClick={() => navigate(-1)}
+              aria-label="Back"
+            >
+              <Icon name={rtl ? "arrow_forward" : "arrow_back"} />
+            </button>
+          ) : (
+            <div className="w-10" />
+          )}
+
+          {showWordmark ? (
+            <h1 className="absolute inset-x-0 mx-auto w-fit flex items-center justify-center m-0">
+              <button
+                type="button"
+                className="flex items-center justify-center px-2 py-1 rounded-lg hover:bg-surface-container-low/80 active:scale-[0.99] transition-all"
+                onClick={() => navigate("/")}
+                aria-label={t("appName")}
+              >
+                <BrandLogo variant="full" />
+              </button>
+            </h1>
+          ) : (
+            <h1 className="font-display-md-mobile text-display-md-mobile font-bold text-primary m-0">
+              {titleForPath(location.pathname, t)}
+            </h1>
+          )}
+
+          {showBack ? (
+            <button
+              type="button"
+              className="w-10 h-10 -me-2 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-colors"
               onClick={() => navigate("/")}
               aria-label={t("appName")}
             >
-              <BrandLogo variant="full" />
+              <BrandLogo variant="mark" className="opacity-90" />
             </button>
-          </h1>
-        ) : (
-          <h1 className="font-display-md-mobile text-display-md-mobile font-bold text-primary m-0">
-            {titleForPath(location.pathname, t)}
-          </h1>
+          ) : (
+            <div className="w-10" />
+          )}
+        </header>
+
+        <main className={`flex-1 min-h-0 ${hideNav ? "pb-lg" : "pb-20"}`}>{children}</main>
+
+        {!hideNav && (
+          <nav className="sticky bottom-0 z-50 mt-auto bg-surface-container-lowest shadow-[0_-2px_8px_rgba(11,28,48,0.1)] h-16 flex justify-around items-center shrink-0">
+            <Tab to="/" icon="account_balance_wallet" label={t("wallet")} end />
+            <Tab to="/transfer" icon="swap_horiz" label={t("transfer")} />
+            <Tab to="/history" icon="history" label={t("history")} />
+            <Tab to="/account" icon="person" label={t("account")} />
+          </nav>
         )}
-
-        {showBack ? (
-          <button
-            type="button"
-            className="w-10 h-10 -me-2 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-colors"
-            onClick={() => navigate("/")}
-            aria-label={t("appName")}
-          >
-            <BrandLogo variant="mark" className="opacity-90" />
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
-      </header>
-
-      <main className={`flex-1 ${hideNav ? "pb-lg" : "pb-20"}`}>{children}</main>
-
-      {!hideNav && (
-        <nav className="fixed bottom-0 inset-x-0 z-50 bg-surface-container-lowest shadow-[0_-2px_8px_rgba(11,28,48,0.1)] h-16 flex justify-around items-center max-w-xl mx-auto">
-          <Tab to="/" icon="account_balance_wallet" label={t("wallet")} end />
-          <Tab to="/transfer" icon="swap_horiz" label={t("transfer")} />
-          <Tab to="/history" icon="history" label={t("history")} />
-          <Tab to="/account" icon="person" label={t("account")} />
-        </nav>
-      )}
+      </div>
     </div>
   );
 }
@@ -120,9 +125,10 @@ function Tab({
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex flex-col items-center justify-center w-full h-full font-label-md text-label-md transition-colors active:scale-90 ${
-          isActive ? "text-primary font-bold" : "text-on-surface-variant"
-        }`
+        [
+          "flex flex-col items-center justify-center w-full h-full font-label-md text-label-md transition-colors active:scale-90",
+          isActive ? "text-primary font-bold" : "text-on-surface-variant",
+        ].join(" ")
       }
     >
       {({ isActive }) => (
