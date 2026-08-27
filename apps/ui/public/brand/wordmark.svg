@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48" role="img" aria-label="Pool Begir">
+  <g transform="translate(0,0)">
+    <rect width="48" height="48" rx="11" fill="#0B1220"/>
+    <path fill="#FFFFFF" d="M13.5 10.5h13.9c6.9 0 11.6 4 11.6 10.2 0 6.2-4.7 10.2-11.6 10.2H21v6.6h-7.5V10.5zm7.5 6.15v8.1h5.7c3.3 0 5.3-1.7 5.3-4.05s-2-4.05-5.3-4.05H21z"/>
+    <path fill="#7CFFB2" d="M31.9 34.9l7.1-7.1 1.65 1.65-7.1 7.1H39V40H28.9v-4.1h3z"/>
+  </g>
+  <text x="64" y="32" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" letter-spacing="-0.04em" fill="#0B1220">Pool Begir</text>
+</svg>

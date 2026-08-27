@@ -1,9 +1,7 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_API_URL?: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+declare module "virtual:branding" {
+  import type { Branding } from "./lib/branding";
+  const branding: Branding;
+  export default branding;
 }

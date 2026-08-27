@@ -67,12 +67,10 @@ profiles:
       offset: 20
       stopTimeoutEnv: GATEWAY_STOP_TIMEOUT
     sites:
-      - host: wallet.example.com
+      - host: pool.trustless-commerce.com
         backend: mega-wallet-api
         backendPort: 8080
         ui: mega-wallet-ui
         uiPort: 80
         healthPath: /api/health
-        tlsCertDir: /etc/letsencrypt/live/wallet.example.com
-        aliases:
-        - www.wallet.example.com
+        tlsCertDir: /etc/letsencrypt/live/trustless-commerce.com

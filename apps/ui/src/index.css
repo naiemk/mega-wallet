@@ -135,6 +135,33 @@ body {
   background: var(--color-surface);
   color: var(--color-on-surface);
   font-family: Inter, system-ui, sans-serif;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+html {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+/* Prevent iOS input focus zoom (requires ≥16px) */
+input,
+textarea,
+select,
+button {
+  font-size: 16px;
+}
+
+.app-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  width: 100%;
+  margin-top: auto;
+  background: var(--color-surface-container-lowest);
+  box-shadow: 0 -4px 12px rgba(11, 28, 48, 0.05);
+  padding: var(--spacing-container-margin);
 }
 
 .hide-scrollbar::-webkit-scrollbar {

@@ -62,13 +62,18 @@ test.describe("UX review: deposit, trade, history", () => {
     await shot(page, "08-transfer-recipient");
     await page.getByRole("button", { name: /Continue|Next|Save/i }).first().click();
 
-    await expect(page.getByText(/Total to pay|Pay to continue|I've paid/i).first()).toBeVisible({
+    await expect(page.getByText(/Total to pay|Pay to continue|Refresh status/i).first()).toBeVisible({
       timeout: 20_000,
     });
     await page.waitForTimeout(800);
     await shot(page, "09-transfer-deposit");
 
-    await page.getByRole("button", { name: /I've paid|check status/i }).click();
+    const active = await page.request.get("/api/transfers/active");
+    const transferId = (await active.json()).transfer?.id as string | undefined;
+    if (transferId) {
+      await page.request.post(`/api/dev/simulate-deposit/${transferId}`);
+    }
+    await page.getByRole("button", { name: /Refresh status/i }).click();
     await page.waitForTimeout(3000);
     await shot(page, "10-transfer-status");
 

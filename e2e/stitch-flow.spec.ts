@@ -6,11 +6,11 @@ test.describe("Stitch wallet flows", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
     await expect(page.getByText(/Total balance|Available/i)).toBeVisible();
 
     await page.getByRole("link", { name: "Transfer" }).click();
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
     await expect(page.getByText("You send")).toBeVisible();
 
     await page.getByRole("button", { name: "Get quote" }).click();
@@ -22,18 +22,15 @@ test.describe("Stitch wallet flows", () => {
     await page.getByLabel("Sheba / IBAN").fill("IR820540102680020817909002");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByRole("heading", { name: "Deposit", exact: true })).toBeVisible();
-    await expect(
-      page.getByText(/Please sign in|Can.?t reach|Request failed|Unauthorized/i),
-    ).toBeVisible({
-      timeout: 10_000,
-    });
+    // Unauthenticated transfer start redirects to sign-in (with return path)
+    await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
+    await expect(page.getByText(/Sign in|Email me a code|Create account/i).first()).toBeVisible();
 
     await page.goto("/history");
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
 
     await page.goto("/account");
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
     await expect(page.getByLabel("Language")).toBeVisible();
     await page.getByLabel("Language").selectOption("fa");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -47,7 +44,7 @@ test.describe("Stitch wallet flows", () => {
 
     await page.goto("/wallet");
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
   });
 
   test("signed-in transfer reaches status", async ({ page }) => {
@@ -64,17 +61,26 @@ test.describe("Stitch wallet flows", () => {
     await page.getByLabel("Sheba / IBAN").fill("IR820540102680020817909002");
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByRole("heading", { name: "Deposit", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pay to continue|Deposit/i })).toBeVisible();
     await expect(page.getByText("Ada Lovelace")).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: /I've made the transfer/i }).click();
-    await expect(page.getByRole("heading", { name: "Status", exact: true })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/Transfer created|Funds deposited|Sending/i).first()).toBeVisible();
+
+    const active = await page.request.get("/api/transfers/active");
+    expect(active.ok()).toBeTruthy();
+    const transferId = (await active.json()).transfer?.id as string;
+    expect(transferId).toBeTruthy();
+    const sim = await page.request.post(`/api/dev/simulate-deposit/${transferId}`);
+    expect(sim.ok()).toBeTruthy();
+
+    await page.getByRole("button", { name: /Refresh status/i }).click();
+    await expect(page.getByText(/Money received|Pending recipient settlement/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   test("desktop width wallet chrome", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "Wallet" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Account" })).toBeVisible();
     const html = await page.locator("#root").innerHTML();

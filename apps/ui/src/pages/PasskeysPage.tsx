@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import branding from "virtual:branding";
 import { apiOptional } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
 import { authClient } from "../lib/auth-client";
@@ -63,7 +64,7 @@ export function PasskeysPage() {
           navigate("/account", { replace: true });
           return;
         }
-        setDisplayName(me.user.name || me.user.email || "Mega Wallet");
+        setDisplayName(me.user.name || me.user.email || branding.name);
         await loadPasskeys();
       } catch (e) {
         setError(translateApiError(e, t));
@@ -79,7 +80,7 @@ export function PasskeysPage() {
     setBusy(true);
     try {
       const { data, error: enrollError } = await authClient.passkey.addPasskey({
-        name: displayName.split("@")[0] || "Mega Wallet",
+        name: displayName.split("@")[0] || branding.name,
       });
       if (enrollError || !data) {
         throw new Error(enrollError?.message ?? t("passkeyFailed"));

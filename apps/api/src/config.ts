@@ -21,6 +21,7 @@ export interface AppConfig {
   s3EventLogKey: string;
   s3EventLogEndpoint: string;
   bootstrapAdminEmail: string;
+  operatorSettlementEmail: string;
   betterAuthSecret: string;
   betterAuthUrl: string;
   publicUiUrl: string;
@@ -86,6 +87,11 @@ export function loadConfig(): AppConfig {
     s3EventLogKey: process.env.S3_EVENT_LOG_KEY ?? "mega-wallet/events.jsonl",
     s3EventLogEndpoint: process.env.S3_EVENT_LOG_ENDPOINT ?? "",
     bootstrapAdminEmail: process.env.BOOTSTRAP_ADMIN_EMAIL ?? "admin@example.com",
+    operatorSettlementEmail: (
+      process.env.OPERATOR_SETTLEMENT_EMAIL ??
+      process.env.BOOTSTRAP_ADMIN_EMAIL ??
+      ""
+    ).trim(),
     betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "dev-secret-change-me-in-production-min-32-chars",
     betterAuthUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:8080",
     publicUiUrl: process.env.PUBLIC_UI_URL ?? "http://localhost:5173",

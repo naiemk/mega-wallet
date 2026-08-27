@@ -119,18 +119,23 @@ export function createApp(ctx: AppContext) {
   app.post("/api/transfers", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const body = await c.req.json<{ quoteId: string; language?: string }>();
+    const body = await c.req.json<{
+      quoteId: string;
+      language?: string;
+      recipient?: { name: string; sheba: string };
+    }>();
     try {
       const [profile] = await ctx.db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
       const result = await ctx.transfers.startTransfer(
         session.user.id,
         body.quoteId,
         body.language ?? profile?.preferredLanguage ?? undefined,
+        body.recipient,
       );
       return c.json(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Transfer failed";
-      const status = /expired|not found|allowed/i.test(message) ? 409 : 400;
+      const status = /expired|not found|allowed|Sheba|recipient/i.test(message) ? 409 : 400;
       return c.json({ error: message }, status);
     }
   });
@@ -145,19 +150,14 @@ export function createApp(ctx: AppContext) {
   app.get("/api/transfers/:id", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const transfer = await ctx.transfers.getActiveTransfer(session.user.id);
-    if (transfer?.id !== c.req.param("id")) {
-      const { transfers } = await import("./db/schema.js");
-      const { eq: eqOp } = await import("drizzle-orm");
-      const [row] = await ctx.db
-        .select()
-        .from(transfers)
-        .where(eqOp(transfers.id, c.req.param("id")))
-        .limit(1);
-      if (!row || row.userId !== session.user.id) return c.json({ error: "Not found" }, 404);
-      return c.json({ transfer: row });
+    const id = c.req.param("id");
+    let row = await ctx.transfers.getTransfer(id);
+    if (!row || row.userId !== session.user.id) return c.json({ error: "Not found" }, 404);
+    if (row.phase === "depositing") {
+      await ctx.transfers.pollDeposit(row.id);
+      row = (await ctx.transfers.getTransfer(id)) ?? row;
     }
-    return c.json({ transfer });
+    return c.json({ transfer: row });
   });
 
   app.post("/api/transfers/:id/recipient", async (c) => {

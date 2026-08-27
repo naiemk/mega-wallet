@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
-import { translateApiError } from "../lib/api-error";
+import { useApiErrorHandler } from "../lib/use-api-error";
 import { formatMoney, humanizeId } from "../lib/format";
 import { CurrencySelect } from "../components/IconCircle";
 import { Icon } from "../components/Icon";
@@ -20,6 +20,7 @@ interface QuoteResult {
 export function WalletDepositPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const handleApiError = useApiErrorHandler();
   const [amount, setAmount] = useState("100");
   const [currency, setCurrency] = useState("USD");
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -51,7 +52,7 @@ export function WalletDepositPage() {
       if (!paymentMethod && q.paymentMethod) setPaymentMethod(q.paymentMethod);
     } catch (e) {
       setQuote(null);
-      setError(translateApiError(e, t) || t("quoteFailed"));
+      handleApiError(e, (msg) => setError(msg || t("quoteFailed")));
     } finally {
       setQuoting(false);
     }
@@ -76,7 +77,7 @@ export function WalletDepositPage() {
       });
       navigate(`/deposit/${result.transferId}`);
     } catch (e) {
-      setError(translateApiError(e, t));
+      handleApiError(e, setError);
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ export function WalletDepositPage() {
   const creditMinor = quote?.usdcOutMinor ?? null;
 
   return (
-    <div className="max-w-xl mx-auto px-container-margin py-lg flex flex-col gap-lg">
+    <div className="px-container-margin py-lg flex flex-col gap-lg max-w-md mx-auto w-full">
       <div>
         <h2 className="font-display-md-mobile text-display-md-mobile text-on-background m-0">
           {t("deposit")}

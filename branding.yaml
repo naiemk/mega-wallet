@@ -1,0 +1,28 @@
+# Central product branding — edit this file to rebrand the app.
+# Loaded by the UI at build/dev time (virtual:branding).
+
+name: Pool Begir
+shortName: Pool Begir
+domain: poolbegir.com
+# Product subtitle shown on wallet home and similar surfaces.
+subtitle: Global portal to send money with USDC
+
+logo:
+  # Paths are served from apps/ui/public
+  mark: /brand/mark.svg
+  wordmark: /brand/wordmark.svg
+  favicon: /brand/favicon.svg
+  # Optional raster mark (Revolut-inspired) for dense displays / PWA
+  markPng: /brand/mark.png
+
+# Localized display strings (falls back to name / subtitle above)
+i18n:
+  en:
+    name: Pool Begir
+    subtitle: Global portal to send money with USDC
+  fa:
+    name: پول بگیر
+    subtitle: درگاه جهانی ارسال پول با USDC
+  ar:
+    name: بول بگير
+    subtitle: بوابة عالمية لإرسال الأموال عبر USDC

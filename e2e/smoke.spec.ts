@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("home page loads wallet UI", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Mega Wallet/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
   await expect(page.getByText(/Total balance|Available|موجودی کل|موجودی قابل استفاده|الرصيد الإجمالي|المتاح/)).toBeVisible();
 });
 

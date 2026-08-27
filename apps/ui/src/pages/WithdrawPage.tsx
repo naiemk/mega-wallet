@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, apiOptional } from "../lib/api";
-import { translateApiError } from "../lib/api-error";
+import { useApiErrorHandler } from "../lib/use-api-error";
 import { FloatingField } from "../components/FloatingField";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -17,6 +17,7 @@ interface Contact {
 export function WithdrawPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const handleApiError = useApiErrorHandler();
   const [amount, setAmount] = useState("50");
   const [name, setName] = useState("");
   const [sheba, setSheba] = useState("");
@@ -59,14 +60,14 @@ export function WithdrawPage() {
       });
       navigate(`/withdraw/${result.transferId}`);
     } catch (e) {
-      setError(translateApiError(e, t));
+      handleApiError(e, setError);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="max-w-xl mx-auto px-container-margin py-lg flex flex-col gap-lg">
+    <div className="px-container-margin py-lg flex flex-col gap-lg w-full">
       <SurfaceCard className="p-md space-y-md">
         <div>
           <label className="block font-label-md text-label-md text-on-surface-variant mb-xs">
