@@ -97,5 +97,9 @@ describe("money", () => {
     expect(applyCommission(1_000_000, 100)).toBe(990_000);
     expect(applyCommission(1_050_000, 100)).toBe(1_039_500);
     expect(applyCommission(100, 0)).toBe(100);
+    expect(applyCommission(0, 100)).toBe(0);
+    expect(applyCommission(-5, 100)).toBe(0);
+    expect(applyCommission(Number.NaN, 100)).toBe(0);
+    expect(applyCommission(1_000_000, -50)).toBe(1_000_000);
   });
 });

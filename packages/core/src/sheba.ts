@@ -22,8 +22,6 @@ export function normalizeSheba(input: string): string {
 export function isValidSheba(iban: string): boolean {
   const n = normalizeSheba(iban);
   if (!n.startsWith("IR") || n.length !== SHEBA_LENGTH) return false;
-  const digits = n.slice(2);
-  if (!/^\d{24}$/.test(digits)) return false;
   return mod97Check(n);
 }
 

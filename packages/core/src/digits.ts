@@ -67,6 +67,7 @@ export function parseUsdAmountInput(input: string): { value: number; text: strin
   if (!n) return null;
   if (!/^\d+(\.\d{0,2})?$/.test(n) && !/^\.\d{1,2}$/.test(n)) return null;
   const value = Number(n);
-  if (!Number.isFinite(value) || value < 0) return null;
+  // Regex already rejects negatives; still guard overflow / NaN.
+  if (!Number.isFinite(value)) return null;
   return { value, text: n };
 }

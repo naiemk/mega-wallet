@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isValidSheba, normalizeSheba, parseShebaRecipient, formatShebaGrouped } from "../src/sheba.js";
+import {
+  formatShebaGrouped,
+  isValidSheba,
+  maskSheba,
+  normalizeSheba,
+  parseShebaRecipient,
+} from "../src/sheba.js";
 import { detectBankFromSheba } from "../src/iran-banks.js";
 
 // Valid Iranian test IBAN (mod97 verified)
@@ -20,6 +26,11 @@ describe("sheba", () => {
     expect(isValidSheba(`IR${persianBody}`)).toBe(true);
   });
 
+  it("normalizes non-IR prefixes to IR body", () => {
+    expect(normalizeSheba(`XX${VALID_IBAN.slice(2)}`)).toBe(VALID_IBAN);
+    expect(normalizeSheba("DE89370400440532013000").startsWith("IR")).toBe(true);
+  });
+
   it("rejects invalid", () => {
     expect(isValidSheba("IR123")).toBe(false);
     expect(isValidSheba("IR82054010268002081790900X")).toBe(false);
@@ -34,5 +45,18 @@ describe("sheba", () => {
     // 054 = Parsian
     expect(detectBankFromSheba(VALID_IBAN)?.id).toBe("parsian");
     expect(formatShebaGrouped(VALID_IBAN)).toContain("IR");
+  });
+
+  it("masks short Shebas as-is and long ones with ellipsis", () => {
+    expect(maskSheba("IR12")).toBe("IR12");
+    expect(maskSheba(VALID_IBAN)).toBe(`IR82…${VALID_IBAN.slice(-6)}`);
+  });
+
+  it("formats empty input and maps unknown bank code to other", () => {
+    expect(formatShebaGrouped("")).toBe("");
+    const unknownBank = "IR149990102680020817909002";
+    expect(isValidSheba(unknownBank)).toBe(true);
+    expect(detectBankFromSheba(unknownBank)).toBeNull();
+    expect(parseShebaRecipient("Ali", unknownBank).bankId).toBe("other");
   });
 });

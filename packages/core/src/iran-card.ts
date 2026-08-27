@@ -37,7 +37,6 @@ export function isNonIranianCardBrand(digits: string): boolean {
 export function isValidIranCard(input: string): boolean {
   const digits = normalizeCardNumber(input);
   if (digits.length !== CARD_LENGTH) return false;
-  if (!/^\d{16}$/.test(digits)) return false;
   if (hasZeroBlock(digits)) return false;
   if (isNonIranianCardBrand(digits)) return false;
   return luhnOk(digits);

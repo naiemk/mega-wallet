@@ -80,8 +80,7 @@ export function voteRates(
 
   if (inBand.length === 0) return null;
 
-  const provisional = median(inBand);
-  if (provisional === null) return null;
+  const provisional = median(inBand)!;
 
   const accepted: number[] = [];
   const rejected: number[] = [...outOfBand];
@@ -92,9 +91,7 @@ export function voteRates(
   }
 
   if (accepted.length < minSources) return null;
-  const midRate = median(accepted);
-  if (midRate === null) return null;
-  return { midRate, accepted, rejected };
+  return { midRate: median(accepted)!, accepted, rejected };
 }
 
 /** Backward-compatible median aggregate (no sanity band / deviation filter). */
