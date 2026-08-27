@@ -28,10 +28,11 @@ export class QuoteService {
     lastSuccessfulPaymentMethod?: string | null;
     lastAttemptedPaymentMethod?: string | null;
   }) {
+    const country = (input.country ?? "US").toUpperCase();
     const methods = await this.onRamp.listPaymentMethods({
       sourceCurrency: input.sourceCurrency,
       destCurrency: "usdc",
-      country: input.country ?? "US",
+      country,
       type: "buy",
     });
 
@@ -50,7 +51,7 @@ export class QuoteService {
       destCurrency: "usdc",
       amountMinor: input.sourceAmountMinor,
       paymentMethod,
-      country: input.country ?? "US",
+      country,
       userId: input.userId,
     });
 
@@ -89,6 +90,7 @@ export class QuoteService {
 
     return {
       ...row,
+      feeMinor: selected.feeMinor,
       rankedQuotes: ranked,
       paymentMethods: methods,
       countdownSeconds: Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000)),

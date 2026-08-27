@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Recipient - Step 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#0b1c30",
+                    "on-surface-variant": "#44474e",
+                    "surface-dim": "#cbdbf5",
+                    "tertiary": "#070b0d",
+                    "tertiary-fixed": "#e0e3e5",
+                    "surface-container-low": "#eff4ff",
+                    "surface": "#f8f9ff",
+                    "secondary-fixed": "#8df7c1",
+                    "inverse-surface": "#213145",
+                    "inverse-on-surface": "#eaf1ff",
+                    "background": "#f8f9ff",
+                    "on-tertiary-container": "#85898b",
+                    "surface-tint": "#465f88",
+                    "primary": "#000a1e",
+                    "outline-variant": "#c4c6cf",
+                    "surface-variant": "#d3e4fe",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed-dim": "#c4c7c9",
+                    "tertiary-container": "#1e2224",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#d3e4fe",
+                    "secondary-fixed-dim": "#71dba6",
+                    "on-primary-fixed": "#001b3d",
+                    "on-primary": "#ffffff",
+                    "outline": "#74777f",
+                    "on-secondary-fixed-variant": "#005235",
+                    "on-tertiary-fixed-variant": "#434749",
+                    "secondary-container": "#8af5be",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#708ab5",
+                    "on-secondary-fixed": "#002113",
+                    "inverse-primary": "#aec7f6",
+                    "secondary": "#006c47",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#0b1c30",
+                    "on-error": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "primary-fixed": "#d6e3ff",
+                    "on-secondary-container": "#00714b",
+                    "primary-fixed-dim": "#aec7f6",
+                    "on-tertiary-fixed": "#181c1e",
+                    "primary-container": "#002147",
+                    "surface-container": "#e5eeff",
+                    "on-primary-fixed-variant": "#2d476f",
+                    "surface-bright": "#f8f9ff",
+                    "surface-container-high": "#dce9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "base": "4px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "container-margin": "20px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "body-md": [
+                            "Inter"
+                    ],
+                    "display-md": [
+                            "Inter"
+                    ],
+                    "numeric-xl": [
+                            "Inter"
+                    ],
+                    "display-lg": [
+                            "Inter"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "label-md": [
+                            "Inter"
+                    ],
+                    "display-md-mobile": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "body-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "display-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "numeric-xl": [
+                            "36px",
+                            {
+                                    "lineHeight": "44px",
+                                    "letterSpacing": "-0.03em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "display-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-lg": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-md": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "display-md-mobile": [
+                            "20px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col antialiased">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-on-background flex items-center justify-between px-container-margin h-12 z-50">
+<button aria-label="Go back" class="text-on-surface-variant dark:text-outline hover:opacity-80 transition-opacity duration-200 active:scale-95 flex items-center justify-center p-2 rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-display-md-mobile text-display-md-mobile font-bold text-primary dark:text-primary-fixed">Recipient</h1>
+<div class="w-10"></div> <!-- Placeholder to balance header -->
+</header>
+<main class="flex-1 overflow-y-auto px-container-margin py-lg flex flex-col gap-lg">
+<!-- 3-Step Progress Stepper -->
+<div class="flex items-center justify-between w-full max-w-sm mx-auto relative px-4">
+<!-- Line connecting steps -->
+<div class="absolute top-1/2 left-0 w-full h-[2px] bg-tertiary-fixed-dim -z-10 translate-y-[-50%]"></div>
+<div class="absolute top-1/2 left-0 w-1/4 h-[2px] bg-secondary translate-y-[-50%] transition-all duration-300"></div>
+<!-- Step 1 (Active) -->
+<div class="flex flex-col items-center gap-sm bg-background px-2">
+<div class="w-6 h-6 rounded-full border-2 border-primary bg-background flex items-center justify-center">
+<span class="text-primary font-label-md text-label-md">1</span>
+</div>
+<span class="font-label-md text-label-md text-primary">Recipient</span>
+</div>
+<!-- Step 2 (Inactive) -->
+<div class="flex flex-col items-center gap-sm bg-background px-2">
+<div class="w-6 h-6 rounded-full border-2 border-tertiary-fixed-dim bg-background flex items-center justify-center">
+<span class="text-tertiary-fixed-dim font-label-md text-label-md">2</span>
+</div>
+<span class="font-label-md text-label-md text-tertiary-fixed-dim">Amount</span>
+</div>
+<!-- Step 3 (Inactive) -->
+<div class="flex flex-col items-center gap-sm bg-background px-2">
+<div class="w-6 h-6 rounded-full border-2 border-tertiary-fixed-dim bg-background flex items-center justify-center">
+<span class="text-tertiary-fixed-dim font-label-md text-label-md">3</span>
+</div>
+<span class="font-label-md text-label-md text-tertiary-fixed-dim">Confirm</span>
+</div>
+</div>
+<!-- Recent Recipients (Bento/Card Style) -->
+<section class="flex flex-col gap-sm">
+<h2 class="font-body-md text-body-md text-on-surface-variant font-semibold px-1">Recent Recipients</h2>
+<div class="flex overflow-x-auto gap-md pb-2 -mx-container-margin px-container-margin snap-x hide-scrollbar">
+<!-- Recent Item 1 -->
+<button class="snap-start shrink-0 w-28 p-md bg-surface-container-lowest rounded-lg border border-[#E2E8F0] flex flex-col items-center gap-sm hover:bg-surface-container-low transition-colors active:scale-95 shadow-[0_2px_8px_rgba(11,28,48,0.05)]">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center text-primary font-display-md-mobile text-display-md-mobile">
+                        JD
+                    </div>
+<span class="font-label-md text-label-md text-on-background text-center truncate w-full">Jane Doe</span>
+</button>
+<!-- Recent Item 2 -->
+<button class="snap-start shrink-0 w-28 p-md bg-surface-container-lowest rounded-lg border border-[#E2E8F0] flex flex-col items-center gap-sm hover:bg-surface-container-low transition-colors active:scale-95 shadow-[0_2px_8px_rgba(11,28,48,0.05)]">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center text-primary font-display-md-mobile text-display-md-mobile">
+                        MA
+                    </div>
+<span class="font-label-md text-label-md text-on-background text-center truncate w-full">Mark Al...</span>
+</button>
+<!-- Recent Item 3 -->
+<button class="snap-start shrink-0 w-28 p-md bg-surface-container-lowest rounded-lg border border-[#E2E8F0] flex flex-col items-center gap-sm hover:bg-surface-container-low transition-colors active:scale-95 shadow-[0_2px_8px_rgba(11,28,48,0.05)]">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center text-primary font-display-md-mobile text-display-md-mobile">
+                        SC
+                    </div>
+<span class="font-label-md text-label-md text-on-background text-center truncate w-full">Sarah C.</span>
+</button>
+<!-- Add New -->
+<button class="snap-start shrink-0 w-28 p-md bg-surface rounded-lg border border-dashed border-outline-variant flex flex-col items-center justify-center gap-sm hover:bg-surface-container-low transition-colors active:scale-95">
+<div class="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">add</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant text-center">New</span>
+</button>
+</div>
+<style>
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            </style>
+</section>
+<!-- New Recipient Form -->
+<section class="flex flex-col gap-md bg-surface-container-lowest p-md rounded-xl border border-[#E2E8F0] shadow-[0_2px_8px_rgba(11,28,48,0.05)]">
+<h2 class="font-body-lg text-body-lg text-on-background font-semibold mb-sm">Or enter new details</h2>
+<div class="flex flex-col gap-sm relative">
+<input class="peer w-full h-[56px] px-md pt-5 pb-1 bg-transparent border border-outline-variant rounded-lg text-body-md text-on-background focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-transparent" id="recipientName" placeholder=" " type="text"/>
+<label class="absolute left-md top-4 font-body-md text-body-md text-on-surface-variant transition-all peer-focus:top-1 peer-focus:text-label-md peer-focus:text-primary peer-focus:font-label-md peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-label-md peer-[:not(:placeholder-shown)]:font-label-md pointer-events-none" for="recipientName">Recipient Name</label>
+</div>
+<div class="flex flex-col gap-sm relative">
+<input class="peer w-full h-[56px] px-md pt-5 pb-1 bg-transparent border border-outline-variant rounded-lg text-body-md text-on-background focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-transparent uppercase font-mono" id="bankDetails" placeholder=" " type="text"/>
+<label class="absolute left-md top-4 font-body-md text-body-md text-on-surface-variant transition-all peer-focus:top-1 peer-focus:text-label-md peer-focus:text-primary peer-focus:font-label-md peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-label-md peer-[:not(:placeholder-shown)]:font-label-md pointer-events-none" for="bankDetails">IBAN / SWIFT / Account Number</label>
+</div>
+<div class="flex flex-col gap-sm relative">
+<select class="peer w-full h-[56px] px-md pt-5 pb-1 bg-transparent border border-outline-variant rounded-lg text-body-md text-on-background focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-all" id="country">
+<option disabled="" selected="" value=""></option>
+<option value="us">United States</option>
+<option value="uk">United Kingdom</option>
+<option value="eu">European Union</option>
+<option value="jp">Japan</option>
+</select>
+<label class="absolute left-md top-1 font-label-md text-label-md text-on-surface-variant pointer-events-none" for="country">Country / Region</label>
+<div class="absolute right-md top-4 pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">expand_more</span>
+</div>
+</div>
+<div class="mt-md">
+<button class="w-full h-12 bg-primary text-on-primary rounded-lg font-body-lg text-body-lg font-semibold hover:bg-opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    Continue
+                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">arrow_forward</span>
+</button>
+</div>
+</section>
+</main>
+</body></html>

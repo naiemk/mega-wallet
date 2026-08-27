@@ -1,72 +1,469 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api, authSignIn, authSignUp } from "../lib/api";
+import { api, apiOptional } from "../lib/api";
+import { translateApiError } from "../lib/api-error";
+import { authClient } from "../lib/auth-client";
+import { completePasskeySignIn } from "../lib/passkey-auth";
+import {
+  getSavedAuthEmail,
+  getSavedPasskeyHint,
+  rememberAuthEmail,
+} from "../lib/auth-storage";
+import { FloatingField } from "../components/FloatingField";
+import { Icon } from "../components/Icon";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { SettingsRow } from "../components/SettingsRow";
+import { SurfaceCard } from "../components/SurfaceCard";
+
+interface Me {
+  user?: { name?: string | null; email?: string | null; emailVerified?: boolean | null };
+  profile?: { emailVerified?: boolean | null };
+  affiliateLink?: string;
+  affiliateEarnedUsdCents?: number;
+}
+
+type AuthStep = "credentials" | "otp" | "enroll-passkey";
+
+const LANG_LABELS: Record<string, string> = {
+  en: "English",
+  fa: "فارسی",
+  ar: "العربية",
+};
+
+function webAuthnAvailable(): boolean {
+  return typeof window !== "undefined" && typeof window.PublicKeyCredential !== "undefined";
+}
 
 export function AccountPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [step, setStep] = useState<AuthStep>("credentials");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
-  const [profile, setProfile] = useState<{ affiliateLink?: string; affiliateEarnedUsdCents?: number } | null>(null);
+  const [profile, setProfile] = useState<Me | null>(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [showLang, setShowLang] = useState(false);
+  const [passkeyHint, setPasskeyHint] = useState(false);
+  const [supportsPasskey, setSupportsPasskey] = useState(true);
 
   useEffect(() => {
-    void api<{ affiliateLink?: string; affiliateEarnedUsdCents?: number }>("/api/me")
-      .then(setProfile)
-      .catch(() => setProfile(null));
+    const saved = getSavedAuthEmail();
+    if (saved) setEmail(saved);
+    setPasskeyHint(getSavedPasskeyHint());
+    setSupportsPasskey(webAuthnAvailable());
+    void apiOptional<Me>("/api/me").then(setProfile);
   }, []);
 
-  async function submit() {
+  async function finishPasskeySignIn() {
     setMessage("");
+    setBusy(true);
     try {
-      if (mode === "signup") await authSignUp(email, password, name);
-      else await authSignIn(email, password);
-      const me = await api<typeof profile>("/api/me");
-      setProfile(me);
-      setMessage("Signed in");
+      const { email: signedEmail } = await completePasskeySignIn({
+        fallbackEmail: email,
+      });
+      setPasskeyHint(true);
+      if (signedEmail) setEmail(signedEmail);
+      try {
+        await refreshProfile();
+      } catch {
+        // Session cookie may lag behind verify response — read via auth client.
+        const session = await authClient.getSession();
+        if (!session.data?.user) throw new Error(t("passkeyFailed"));
+        setProfile({
+          user: session.data.user,
+          profile: { emailVerified: session.data.user.emailVerified },
+        });
+      }
+      setMessage(t("signedIn"));
+      setStep("credentials");
     } catch (e) {
-      setMessage(String(e));
+      console.error("[passkey] sign-in failed", e);
+      setMessage(translateApiError(e, t));
+    } finally {
+      setBusy(false);
     }
   }
 
+  function setLanguage(lang: string) {
+    void i18n.changeLanguage(lang);
+    localStorage.setItem("mw-lang", lang);
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "fa" || lang === "ar" ? "rtl" : "ltr";
+    setShowLang(false);
+  }
+
+  async function refreshProfile() {
+    const me = await api<Me>("/api/me");
+    setProfile(me);
+    return me;
+  }
+
+  async function sendOtp() {
+    setMessage("");
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+      setMessage(t("emailRequired"));
+      return;
+    }
+    if (mode === "signup" && !name.trim()) {
+      setMessage(t("nameRequired"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email: trimmed,
+        type: "sign-in",
+      });
+      if (error) throw new Error(error.message ?? t("otpSendFailed"));
+      setEmail(trimmed);
+      setStep("otp");
+      setMessage(t("otpSent"));
+    } catch (e) {
+      setMessage(translateApiError(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setMessage("");
+    const code = otp.trim();
+    if (code.length < 6) {
+      setMessage(t("otpInvalid"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await authClient.signIn.emailOtp({
+        email: email.trim().toLowerCase(),
+        otp: code,
+        name: name.trim() || undefined,
+      });
+      if (error) throw new Error(error.message ?? t("otpInvalid"));
+      rememberAuthEmail(email);
+      await refreshProfile();
+      setMessage(t("signedIn"));
+      if (supportsPasskey && !passkeyHint) {
+        setStep("enroll-passkey");
+      } else {
+        setStep("credentials");
+        setOtp("");
+      }
+    } catch (e) {
+      setMessage(translateApiError(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signInWithPasskey() {
+    await finishPasskeySignIn();
+  }
+
+  async function signOut() {
+    setMessage("");
+    setBusy(true);
+    try {
+      await authClient.signOut();
+      setProfile(null);
+      setStep("credentials");
+      setOtp("");
+      setMessage(t("signedOut"));
+    } catch (e) {
+      setMessage(translateApiError(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const displayName = profile?.user?.name || t("guest");
+  const displayEmail = profile?.user?.email || "";
+  const isVerified = Boolean(profile?.user?.emailVerified || profile?.profile?.emailVerified);
+  const initials = (displayName || "U")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t("account")}</h2>
-      {!profile?.affiliateLink ? (
-        <div className="card space-y-2">
-          <div className="flex gap-2 text-sm">
-            <button className={mode === "login" ? "text-emerald-300" : "text-slate-400"} onClick={() => setMode("login")}>
-              {t("login")}
-            </button>
-            <button className={mode === "signup" ? "text-emerald-300" : "text-slate-400"} onClick={() => setMode("signup")}>
-              {t("signup")}
-            </button>
-          </div>
-          {mode === "signup" && (
-            <input className="input" placeholder={t("name")} value={name} onChange={(e) => setName(e.target.value)} />
+    <div className="px-container-margin py-lg flex flex-col gap-lg max-w-md mx-auto w-full">
+      <SurfaceCard className="p-md flex items-center gap-md">
+        <div className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center font-display-md text-display-md shrink-0">
+          {initials}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <h2 className="font-display-md-mobile text-display-md-mobile text-primary m-0 truncate">
+            {displayName}
+          </h2>
+          {displayEmail && (
+            <p className="font-body-md text-body-md text-on-surface-variant m-0 truncate">
+              {displayEmail}
+            </p>
           )}
-          <input className="input" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input
-            className="input"
-            type="password"
-            placeholder={t("password")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button className="btn-primary" onClick={submit}>
-            {mode === "signup" ? t("signup") : t("login")}
-          </button>
+          {profile?.user && isVerified && (
+            <div className="mt-xs inline-flex items-center gap-xs bg-surface-container-low px-2 py-1 rounded-full w-fit">
+              <Icon name="verified_user" filled className="text-[14px]! text-secondary" />
+              <span className="font-label-md text-label-md text-secondary">{t("verified")}</span>
+            </div>
+          )}
         </div>
+      </SurfaceCard>
+
+      {!profile?.user ? (
+        <SurfaceCard className="p-md flex flex-col gap-md">
+          {step === "credentials" && (
+            <>
+              <div className="flex gap-md">
+                <button
+                  type="button"
+                  className={`font-label-md text-label-md ${mode === "login" ? "text-primary" : "text-on-surface-variant"}`}
+                  onClick={() => setMode("login")}
+                >
+                  {t("login")}
+                </button>
+                <button
+                  type="button"
+                  className={`font-label-md text-label-md ${mode === "signup" ? "text-primary" : "text-on-surface-variant"}`}
+                  onClick={() => setMode("signup")}
+                >
+                  {t("signup")}
+                </button>
+              </div>
+              {mode === "signup" && (
+                <FloatingField
+                  id="name"
+                  label={t("name")}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              )}
+              <FloatingField
+                id="email"
+                label={t("email")}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+              {message && (
+                <p
+                  className={`font-body-md text-body-md m-0 rounded-lg px-md py-sm ${
+                    message === t("signedIn") || message === t("otpSent")
+                      ? "bg-secondary-container text-on-secondary-container"
+                      : "bg-error-container text-on-error-container"
+                  }`}
+                  role="alert"
+                >
+                  {message}
+                </p>
+              )}
+              {mode === "login" && supportsPasskey && (
+                <PrimaryButton disabled={busy} onClick={() => void signInWithPasskey()}>
+                  {busy ? "…" : t("continueWithPasskey")}
+                </PrimaryButton>
+              )}
+              <PrimaryButton
+                disabled={busy}
+                onClick={() => void sendOtp()}
+                variant={mode === "login" && supportsPasskey ? "surface" : "primary"}
+              >
+                {t("emailMeCode")}
+              </PrimaryButton>
+            </>
+          )}
+
+          {step === "otp" && (
+            <>
+              <p className="font-body-md text-body-md text-on-surface-variant m-0">
+                {t("otpHint", { email })}
+              </p>
+              <FloatingField
+                id="otp"
+                label={t("otpCode")}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              />
+              <PrimaryButton disabled={busy} onClick={() => void verifyOtp()}>
+                {t("verifyCode")}
+              </PrimaryButton>
+              <button
+                type="button"
+                className="font-label-md text-label-md text-on-surface-variant underline self-start"
+                disabled={busy}
+                onClick={() => {
+                  setStep("credentials");
+                  setOtp("");
+                  setMessage("");
+                }}
+              >
+                {t("back")}
+              </button>
+            </>
+          )}
+        </SurfaceCard>
       ) : (
-        <div className="card space-y-2 text-sm">
-          <p>
-            {t("affiliateEarned")}: ${((profile.affiliateEarnedUsdCents ?? 0) / 100).toFixed(2)}
-          </p>
-          <p className="break-all text-slate-300">{profile.affiliateLink}</p>
-        </div>
+        <>
+          {step === "enroll-passkey" && supportsPasskey && (
+            <SurfaceCard className="p-md flex flex-col gap-md">
+              <p className="font-body-md text-body-md text-on-surface m-0">{t("passkeyEnrollHint")}</p>
+              <PrimaryButton
+                disabled={busy}
+                onClick={() => {
+                  setStep("credentials");
+                  setOtp("");
+                  navigate("/account/passkeys");
+                }}
+              >
+                {t("createPasskey")}
+              </PrimaryButton>
+              <button
+                type="button"
+                className="font-label-md text-label-md text-on-surface-variant underline self-start"
+                disabled={busy}
+                onClick={() => {
+                  setStep("credentials");
+                  setOtp("");
+                  setMessage(t("passkeySkipped"));
+                }}
+              >
+                {t("skipForNow")}
+              </button>
+            </SurfaceCard>
+          )}
+          {step === "enroll-passkey" && !supportsPasskey && (
+            <SurfaceCard className="p-md">
+              <p className="font-body-md text-body-md text-on-surface-variant m-0">
+                {t("passkeyUnavailable")}
+              </p>
+            </SurfaceCard>
+          )}
+
+          <section className="flex flex-col gap-sm">
+            <h3 className="font-label-md text-label-md text-outline uppercase tracking-wider ps-xs">
+              {t("security")}
+            </h3>
+            <SurfaceCard>
+              {supportsPasskey && (
+                <SettingsRow
+                  icon="fingerprint"
+                  title={t("passkeys")}
+                  subtitle={t("passkeysManageHint")}
+                  onClick={() => navigate("/account/passkeys")}
+                />
+              )}
+              <SettingsRow
+                icon="logout"
+                title={t("signOut")}
+                subtitle={displayEmail}
+                onClick={() => void signOut()}
+                border={false}
+              />
+            </SurfaceCard>
+          </section>
+
+          <section className="flex flex-col gap-sm">
+            <h3 className="font-label-md text-label-md text-outline uppercase tracking-wider ps-xs">
+              {t("invite")}
+            </h3>
+            <SurfaceCard>
+              <div className="p-md">
+                <p className="font-body-md text-body-md text-on-surface-variant">
+                  {t("affiliateEarned")}: $
+                  {((profile.affiliateEarnedUsdCents ?? 0) / 100).toFixed(2)}
+                </p>
+                {profile.affiliateLink && (
+                  <p className="font-body-md text-body-md text-primary break-all mt-sm">
+                    {profile.affiliateLink}
+                  </p>
+                )}
+                <Link
+                  to="/invite"
+                  className="inline-block mt-md font-label-md text-label-md text-primary underline"
+                >
+                  {t("invite")}
+                </Link>
+              </div>
+            </SurfaceCard>
+          </section>
+        </>
       )}
-      {message && <p className="text-sm text-emerald-300">{message}</p>}
+
+      <section className="flex flex-col gap-sm">
+        <h3 className="font-label-md text-label-md text-outline uppercase tracking-wider ps-xs">
+          {t("preferences")}
+        </h3>
+        <SurfaceCard>
+          <SettingsRow
+            icon="language"
+            title={t("language")}
+            subtitle={LANG_LABELS[i18n.language] ?? i18n.language}
+            onClick={() => setShowLang((v) => !v)}
+            border={false}
+            trailing={
+              <select
+                aria-label={t("language")}
+                className="font-body-md text-body-md text-on-surface-variant bg-transparent border-0 outline-none"
+                value={i18n.language}
+                onChange={(e) => setLanguage(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="en">English</option>
+                <option value="fa">فارسی</option>
+                <option value="ar">العربية</option>
+              </select>
+            }
+          />
+          {showLang && (
+            <div className="px-md pb-md flex gap-sm">
+              {(["en", "fa", "ar"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  className={`px-3 py-1 rounded-full font-label-md text-label-md ${
+                    i18n.language === lang
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container text-on-surface"
+                  }`}
+                  onClick={() => setLanguage(lang)}
+                >
+                  {LANG_LABELS[lang]}
+                </button>
+              ))}
+            </div>
+          )}
+        </SurfaceCard>
+      </section>
+
+      <section className="flex flex-col gap-sm">
+        <h3 className="font-label-md text-label-md text-outline uppercase tracking-wider ps-xs">
+          {t("more")}
+        </h3>
+        <SurfaceCard>
+          <SettingsRow
+            icon="admin_panel_settings"
+            title={t("operator")}
+            subtitle={t("operatorHint")}
+            onClick={() => navigate("/operator")}
+          />
+          <SettingsRow
+            icon="group_add"
+            title={t("invite")}
+            subtitle={t("inviteHint")}
+            onClick={() => navigate("/invite")}
+            border={false}
+          />
+        </SurfaceCard>
+      </section>
+
+      {message && <p className="font-body-md text-body-md text-secondary">{message}</p>}
     </div>
   );
 }

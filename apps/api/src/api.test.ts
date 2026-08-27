@@ -46,6 +46,22 @@ describe("allowed origins", () => {
   });
 });
 
+describe("passwordless auth options", () => {
+  it("enables email OTP and passkey, disables password", async () => {
+    const { buildAuthOptions } = await import("../src/auth.js");
+    const config = {
+      ...loadConfig(),
+      authEmailMode: "console" as const,
+      databaseUrl: join(tmpdir(), `mw-auth-${randomUUID()}.db`),
+    };
+    const options = buildAuthOptions(config);
+    expect(options.emailAndPassword?.enabled).toBe(false);
+    const pluginIds = (options.plugins ?? []).map((p) => (p as { id?: string }).id);
+    expect(pluginIds).toContain("email-otp");
+    expect(pluginIds).toContain("passkey");
+  });
+});
+
 describe("fake on-ramp", () => {
   it("creates deposit session", async () => {
     const adapter = new FakeOnRampAdapter();

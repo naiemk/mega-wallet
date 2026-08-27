@@ -1,24 +1,46 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../lib/api";
+import { api, apiOptional } from "../lib/api";
+import { translateApiError } from "../lib/api-error";
+import { Icon } from "../components/Icon";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { SurfaceCard } from "../components/SurfaceCard";
+import { TransactionRow } from "../components/TransactionRow";
 
 export function OperatorPage() {
   const { t } = useTranslation();
-  const [requests, setRequests] = useState<Array<{ id: string; recipientName?: string | null; phase: string }>>([]);
-  const [dashboard, setDashboard] = useState<{ count: number; unsettled: number; volumeUsdCents: number } | null>(null);
+  const [requests, setRequests] = useState<
+    Array<{ id: string; recipientName?: string | null; phase: string; usdAmountCents?: number }>
+  >([]);
+  const [dashboard, setDashboard] = useState<{
+    count: number;
+    unsettled: number;
+    volumeUsdCents: number;
+  } | null>(null);
+  const [denied, setDenied] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void load();
   }, []);
 
   async function load() {
+    setError("");
+    setDenied(false);
     try {
-      const r = await api<{ requests: typeof requests }>("/api/operator/requests");
-      const d = await api<{ totals: typeof dashboard }>("/api/operator/dashboard");
+      const r = await apiOptional<{ requests: typeof requests }>("/api/operator/requests");
+      const d = await apiOptional<{ totals: typeof dashboard }>("/api/operator/dashboard");
+      if (!r || !d) {
+        setDenied(true);
+        setRequests([]);
+        setDashboard(null);
+        return;
+      }
       setRequests(r.requests);
       setDashboard(d.totals);
-    } catch {
+    } catch (e) {
       setRequests([]);
+      setError(translateApiError(e, t));
     }
   }
 
@@ -32,35 +54,68 @@ export function OperatorPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t("operator")}</h2>
-      {dashboard && (
-        <div className="card grid grid-cols-3 gap-2 text-center text-xs">
-          <div>
-            <p className="text-slate-400">Total</p>
-            <p className="text-lg font-bold">{dashboard.count}</p>
+    <div className="px-container-margin py-lg flex flex-col gap-lg max-w-xl mx-auto w-full">
+      <section className="bg-primary rounded-xl p-lg text-on-primary shadow-[0_4px_16px_rgba(0,10,30,0.15)]">
+        <p className="font-label-md text-label-md text-on-primary/80 uppercase tracking-widest">
+          {t("operator")}
+        </p>
+        {dashboard ? (
+          <div className="grid grid-cols-3 gap-md mt-md">
+            <div>
+              <p className="font-label-md text-label-md text-on-primary/70">{t("total")}</p>
+              <p className="font-display-md text-display-md">{dashboard.count}</p>
+            </div>
+            <div>
+              <p className="font-label-md text-label-md text-on-primary/70">{t("unsettled")}</p>
+              <p className="font-display-md text-display-md">{dashboard.unsettled}</p>
+            </div>
+            <div>
+              <p className="font-label-md text-label-md text-on-primary/70">{t("volume")}</p>
+              <p className="font-display-md text-display-md">
+                ${(dashboard.volumeUsdCents / 100).toFixed(0)}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-slate-400">Unsettled</p>
-            <p className="text-lg font-bold">{dashboard.unsettled}</p>
-          </div>
-          <div>
-            <p className="text-slate-400">Volume</p>
-            <p className="text-lg font-bold">${(dashboard.volumeUsdCents / 100).toFixed(0)}</p>
-          </div>
-        </div>
-      )}
-      {requests.map((r) => (
-        <div key={r.id} className="card text-sm">
-          <p>{r.recipientName ?? "—"}</p>
-          <p className="text-slate-400">{r.phase}</p>
-          {r.phase === "withdraw_initiated" && (
-            <button className="btn-primary mt-2" onClick={() => markReceived(r.id)}>
-              Mark received
-            </button>
+        ) : (
+          <p className="mt-md font-body-md text-body-md text-on-primary/80">
+            {denied ? t("operatorDenied") : t("operatorEmpty")}
+          </p>
+        )}
+      </section>
+
+      {error && <p className="font-body-md text-body-md text-error">{error}</p>}
+
+      {!denied && (
+        <SurfaceCard>
+          {requests.length === 0 ? (
+            <p className="p-md font-body-md text-body-md text-on-surface-variant">{t("noRequests")}</p>
+          ) : (
+            requests.map((r, i) => (
+              <div key={r.id}>
+                <TransactionRow
+                  title={r.recipientName ?? "—"}
+                  subtitle={r.phase}
+                  amount={
+                    r.usdAmountCents != null
+                      ? `$${(r.usdAmountCents / 100).toFixed(2)}`
+                      : "—"
+                  }
+                  icon="account_balance"
+                  border={i < requests.length - 1 && r.phase !== "withdraw_initiated"}
+                />
+                {r.phase === "withdraw_initiated" && (
+                  <div className="px-md pb-md">
+                    <PrimaryButton onClick={() => markReceived(r.id)}>
+                      <Icon name="check_circle" />
+                      {t("markReceived")}
+                    </PrimaryButton>
+                  </div>
+                )}
+              </div>
+            ))
           )}
-        </div>
-      ))}
+        </SurfaceCard>
+      )}
     </div>
   );
 }

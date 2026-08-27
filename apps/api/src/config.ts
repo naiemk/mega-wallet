@@ -6,6 +6,8 @@ export interface AppConfig {
   databaseUrl: string;
   fakeRamps: boolean;
   trustlessCommerceUrl: string;
+  trustlessCommerceWebhookSecret: string;
+  publicApiUrl: string;
   onramperApiKey: string;
   onramperSigningKey: string;
   operatorWallets: { ethereum: string; base: string; tron: string };
@@ -22,6 +24,18 @@ export interface AppConfig {
   betterAuthSecret: string;
   betterAuthUrl: string;
   publicUiUrl: string;
+  authEmailMode: "console" | "resend";
+  resendApiKey: string;
+  resendFrom: string;
+}
+
+function resolveAuthEmailMode(fakeRamps: boolean): "console" | "resend" {
+  const mode = process.env.AUTH_EMAIL_MODE?.trim().toLowerCase();
+  if (mode === "console") return "console";
+  if (mode === "resend") return "resend";
+  if (process.env.RESEND_API_KEY) return "resend";
+  if (fakeRamps) return "console";
+  return "console";
 }
 
 function loadDotEnv() {
@@ -51,7 +65,10 @@ export function loadConfig(): AppConfig {
     port: Number(process.env.PORT ?? 8080),
     databaseUrl: process.env.DATABASE_URL ?? "./data/mega-wallet.db",
     fakeRamps: process.env.FAKE_RAMPS === "1",
-    trustlessCommerceUrl: process.env.TRUSTLESS_COMMERCE_URL ?? "http://localhost:8080",
+    trustlessCommerceUrl:
+      process.env.TRUSTLESS_COMMERCE_URL ?? "https://testnet.trustless-commerce.com",
+    trustlessCommerceWebhookSecret: process.env.TRUSTLESS_COMMERCE_WEBHOOK_SECRET ?? "",
+    publicApiUrl: process.env.PUBLIC_API_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:8080",
     onramperApiKey: process.env.ONRAMPER_API_KEY ?? "",
     onramperSigningKey: process.env.ONRAMPER_SIGNING_KEY ?? "",
     operatorWallets: {
@@ -72,6 +89,9 @@ export function loadConfig(): AppConfig {
     betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "dev-secret-change-me-in-production-min-32-chars",
     betterAuthUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:8080",
     publicUiUrl: process.env.PUBLIC_UI_URL ?? "http://localhost:5173",
+    authEmailMode: resolveAuthEmailMode(process.env.FAKE_RAMPS === "1"),
+    resendApiKey: process.env.RESEND_API_KEY ?? "",
+    resendFrom: process.env.RESEND_FROM ?? "Mega Wallet <onboarding@resend.dev>",
   };
 }
 

@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { generateInviteCode } from "@mega-wallet/core";
 import type { AppContext } from "./context.js";
 import { isAllowedOrigin } from "./config.js";
+import { readLastOtp } from "./auth-otp.js";
+import { passkeyRpFromOrigin, passkeyRpStore } from "./passkey-rp.js";
 import { users } from "./db/schema.js";
 
 export function createApp(ctx: AppContext) {
@@ -17,10 +19,62 @@ export function createApp(ctx: AppContext) {
     }),
   );
 
-  app.get("/api/health", (c) => c.json({ ok: true }));
-  app.get("/api/ready", (c) => c.json({ ok: true, db: true }));
+  app.get("/api/health", (c) => c.json({ ok: true, fakeRamps: ctx.config.fakeRamps }));
+  app.get("/api/ready", (c) => c.json({ ok: true, db: true, fakeRamps: ctx.config.fakeRamps }));
 
-  app.on(["POST", "GET"], "/api/auth/*", (c) => ctx.auth.handler(c.req.raw));
+  app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+    // WebAuthn verify needs an Origin. Some proxies omit it on POST; fall back to Referer.
+    const raw = c.req.raw;
+    const headers = new Headers(raw.headers);
+    if (!headers.get("origin")) {
+      const referer = headers.get("referer");
+      if (referer) {
+        try {
+          headers.set("origin", new URL(referer).origin);
+        } catch {
+          /* ignore invalid referer */
+        }
+      }
+    }
+
+    let request: Request = raw;
+    let credId = "";
+    const isPasskeyVerify =
+      c.req.method === "POST" && c.req.path.endsWith("/passkey/verify-authentication");
+
+    if (isPasskeyVerify || headers.get("origin") !== raw.headers.get("origin")) {
+      const bodyBuf =
+        c.req.method !== "GET" && c.req.method !== "HEAD" ? await raw.arrayBuffer() : null;
+      if (bodyBuf && isPasskeyVerify) {
+        try {
+          const parsed = JSON.parse(new TextDecoder().decode(bodyBuf)) as {
+            response?: { id?: string };
+          };
+          credId = parsed.response?.id ?? "";
+        } catch {
+          /* ignore */
+        }
+      }
+      const init: RequestInit = { method: raw.method, headers };
+      if (bodyBuf) {
+        init.body = bodyBuf;
+        (init as RequestInit & { duplex: string }).duplex = "half";
+      }
+      request = new Request(raw.url, init);
+    }
+
+    const response = await passkeyRpStore.run(
+      passkeyRpFromOrigin(request.headers.get("origin"), ctx.config.publicUiUrl),
+      () => ctx.auth.handler(request),
+    );
+    if (c.req.path.includes("/passkey/") && response.status >= 400) {
+      const detail = await response.clone().text().catch(() => "");
+      console.warn(
+        `[passkey] ${c.req.method} ${c.req.path} → ${response.status} origin=${request.headers.get("origin") ?? ""} challengeCookie=${request.headers.get("cookie")?.includes("better-auth-passkey") ? "yes" : "no"} credId=${credId || "?"} ${detail.slice(0, 240)}`,
+      );
+    }
+    return response;
+  });
 
   app.use("/api/*", async (c, next) => {
     if (c.req.path === "/api/health" || c.req.path === "/api/ready") return next();
@@ -65,9 +119,20 @@ export function createApp(ctx: AppContext) {
   app.post("/api/transfers", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const body = await c.req.json<{ quoteId: string }>();
-    const result = await ctx.transfers.startTransfer(session.user.id, body.quoteId);
-    return c.json(result);
+    const body = await c.req.json<{ quoteId: string; language?: string }>();
+    try {
+      const [profile] = await ctx.db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+      const result = await ctx.transfers.startTransfer(
+        session.user.id,
+        body.quoteId,
+        body.language ?? profile?.preferredLanguage ?? undefined,
+      );
+      return c.json(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Transfer failed";
+      const status = /expired|not found|allowed/i.test(message) ? 409 : 400;
+      return c.json({ error: message }, status);
+    }
   });
 
   app.get("/api/transfers/active", async (c) => {
@@ -112,7 +177,13 @@ export function createApp(ctx: AppContext) {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
     const balance = await ctx.ledger.getBalance(session.user.id);
-    return c.json({ balance, displayUsd: (balance.availableUsdCents / 100).toFixed(2) });
+    return c.json({
+      balance,
+      displayUsd: (balance.availableUsdCents / 100).toFixed(2),
+      reservedUsd: (balance.reservedUsdCents / 100).toFixed(2),
+      availableUsdCents: balance.availableUsdCents,
+      reservedUsdCents: balance.reservedUsdCents,
+    });
   });
 
   app.get("/api/history", async (c) => {
@@ -182,22 +253,199 @@ export function createApp(ctx: AppContext) {
   app.post("/api/deposits", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const body = await c.req.json<{ amountUsdCents: number }>();
-    const result = await ctx.transfers.startWalletDeposit(session.user.id, body.amountUsdCents);
-    return c.json(result);
+    const body = await c.req.json<{
+      amountUsdCents?: number;
+      amountMinor?: number;
+      sourceCurrency?: string;
+      paymentMode?: "crypto" | "fiat" | "crypto_or_fiat";
+      paymentMethod?: string;
+      provider?: string;
+      language?: string;
+    }>();
+    try {
+      const [profile] = await ctx.db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+      const sourceCurrency = body.sourceCurrency ?? "USD";
+      const sourceAmountMinor =
+        body.amountMinor ??
+        body.amountUsdCents ??
+        undefined;
+      if (sourceAmountMinor == null) {
+        return c.json({ error: "amountUsdCents or amountMinor required" }, 400);
+      }
+
+      let usd = body.amountUsdCents;
+      let provider = body.provider;
+      let paymentMethod = body.paymentMethod;
+
+      // Always quote via TC for fiat deposits so settlement USDC is accurate
+      if (body.paymentMode !== "crypto") {
+        const q = await ctx.quotes.createQuote({
+          sourceCurrency,
+          destCurrency: "USD",
+          sourceAmountMinor,
+          paymentMethod: body.paymentMethod,
+          country: "US",
+          userId: session.user.id,
+          lastSuccessfulPaymentMethod: profile?.lastSuccessfulPaymentMethod,
+          lastAttemptedPaymentMethod: profile?.lastAttemptedPaymentMethod,
+        });
+        usd = q.usdcOutMinor;
+        provider = provider ?? q.provider;
+        paymentMethod = paymentMethod ?? q.paymentMethod;
+      } else if (usd == null) {
+        usd = sourceAmountMinor;
+      }
+
+      if (usd == null) return c.json({ error: "amountUsdCents or amountMinor required" }, 400);
+
+      const result = await ctx.transfers.startWalletDeposit(session.user.id, {
+        amountUsdCents: usd,
+        sourceAmountMinor,
+        sourceCurrency,
+        paymentMode: body.paymentMode ?? "fiat",
+        paymentMethod,
+        provider,
+        language: body.language ?? profile?.preferredLanguage ?? "en",
+      });
+      return c.json(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Deposit failed";
+      const status = /Invalid amount/i.test(message) ? 409 : 400;
+      return c.json({ error: message }, status);
+    }
+  });
+
+  app.get("/api/deposits/:id", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    const row = await ctx.transfers.getTransfer(c.req.param("id"));
+    if (!row || row.userId !== session.user.id) return c.json({ error: "Not found" }, 404);
+    if (row.kind !== "wallet_deposit" && row.quoteId !== "wallet") {
+      return c.json({ error: "Not a wallet deposit" }, 400);
+    }
+    // Refresh status if still depositing
+    if (row.phase === "depositing") {
+      await ctx.transfers.pollDeposit(row.id);
+    }
+    const fresh = await ctx.transfers.getTransfer(row.id);
+    return c.json({ transfer: fresh });
   });
 
   app.post("/api/withdrawals", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const body = await c.req.json<{ amountUsdCents: number; name: string; sheba: string }>();
-    const result = await ctx.transfers.startWalletWithdrawal(
-      session.user.id,
-      body.amountUsdCents,
-      body.name,
-      body.sheba,
-    );
-    return c.json(result);
+    const body = await c.req.json<{
+      amountUsdCents: number;
+      name?: string;
+      sheba?: string;
+      contactId?: string;
+      saveContact?: boolean;
+    }>();
+    try {
+      let name = body.name ?? "";
+      let sheba = body.sheba ?? "";
+      if (body.contactId) {
+        const contacts = await ctx.transfers.listContacts(session.user.id);
+        const contact = contacts.find((x) => x.id === body.contactId);
+        if (!contact) return c.json({ error: "Contact not found" }, 404);
+        name = contact.name;
+        sheba = contact.sheba;
+      }
+      const result = await ctx.transfers.startWalletWithdrawal(
+        session.user.id,
+        body.amountUsdCents,
+        name,
+        sheba,
+        { saveContact: body.saveContact },
+      );
+      return c.json(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Withdraw failed";
+      const status = /Insufficient/i.test(message) ? 409 : 400;
+      return c.json({ error: message }, status);
+    }
+  });
+
+  app.get("/api/withdrawals/:id", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    const row = await ctx.transfers.getTransfer(c.req.param("id"));
+    if (!row || row.userId !== session.user.id) return c.json({ error: "Not found" }, 404);
+    if (row.kind !== "wallet_withdraw" && row.quoteId !== "wallet-withdraw") {
+      return c.json({ error: "Not a wallet withdrawal" }, 400);
+    }
+    return c.json({ transfer: row });
+  });
+
+  app.post("/api/withdrawals/:id/cancel", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    try {
+      const result = await ctx.transfers.cancelWithdrawal(c.req.param("id"), session.user.id);
+      return c.json(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Cancel failed";
+      return c.json({ error: message }, 400);
+    }
+  });
+
+  app.get("/api/contacts", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    const contacts = await ctx.transfers.listContacts(session.user.id);
+    return c.json({ contacts });
+  });
+
+  app.post("/api/contacts", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    const body = await c.req.json<{ name: string; sheba: string }>();
+    try {
+      const contact = await ctx.transfers.saveContact(session.user.id, body.name, body.sheba);
+      return c.json({ contact });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : "Invalid contact" }, 400);
+    }
+  });
+
+  app.delete("/api/contacts/:id", async (c) => {
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    try {
+      await ctx.transfers.deleteContact(session.user.id, c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : "Not found" }, 404);
+    }
+  });
+
+  app.post("/api/webhooks/trustless-commerce", async (c) => {
+    const secret = ctx.config.trustlessCommerceWebhookSecret;
+    if (secret) {
+      const header = c.req.header("x-webhook-secret") ?? c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
+      if (header !== secret) return c.json({ error: "Unauthorized" }, 401);
+    }
+    const body = await c.req.json<{
+      invoiceId?: string;
+      id?: string;
+      clientInvoiceId?: string;
+      status?: string;
+      type?: string;
+      invoice?: { id?: string; status?: string; clientInvoiceId?: string };
+    }>();
+    const externalId =
+      body.invoice?.id ??
+      body.invoiceId ??
+      body.id ??
+      body.clientInvoiceId ??
+      body.invoice?.clientInvoiceId;
+    const status = body.invoice?.status ?? body.status ?? "";
+    if (!externalId) return c.json({ error: "Missing invoice id" }, 400);
+    if (status && !/paid|swept/i.test(status)) {
+      return c.json({ ok: true, ignored: true });
+    }
+    const updated = await ctx.transfers.handleDepositWebhook(externalId);
+    return c.json({ ok: true, transferId: updated?.id ?? null });
   });
 
   app.get("/api/admin/users", async (c) => {
@@ -273,13 +521,29 @@ export function createApp(ctx: AppContext) {
     return c.json({ ok: true });
   });
 
+  app.get("/api/dev/last-otp", async (c) => {
+    if (ctx.config.authEmailMode !== "console") return c.json({ error: "Not available" }, 403);
+    const email = c.req.query("email");
+    if (!email) return c.json({ error: "email required" }, 400);
+    const record = readLastOtp(ctx.config, email);
+    if (!record) return c.json({ error: "No OTP found" }, 404);
+    return c.json(record);
+  });
+
   return app;
 }
 
 async function getSession(c: { req: { raw: Request } }, ctx: AppContext) {
   const session = await ctx.auth.api.getSession({ headers: c.req.raw.headers });
   if (!session?.user) return null;
-  await syncUserProfile(ctx, session.user.id, session.user.email, session.user.name);
+  await syncUserProfile(
+    ctx,
+    session.user.id,
+    session.user.email,
+    session.user.name,
+    undefined,
+    Boolean(session.user.emailVerified),
+  );
   return session;
 }
 
@@ -312,9 +576,15 @@ async function syncUserProfile(
   email: string,
   name: string,
   referredByCode?: string | null,
+  emailVerified = false,
 ) {
   const [existing] = await ctx.db.select().from(users).where(eq(users.id, userId)).limit(1);
-  if (existing) return;
+  if (existing) {
+    if (emailVerified && !existing.emailVerified) {
+      await ctx.db.update(users).set({ emailVerified: true }).where(eq(users.id, userId));
+    }
+    return;
+  }
 
   let referredByUserId: string | null = null;
   if (referredByCode) {
@@ -334,7 +604,7 @@ async function syncUserProfile(
     email,
     name: name || email.split("@")[0] || "User",
     role: bootstrapRole,
-    emailVerified: bootstrapRole === "admin",
+    emailVerified: bootstrapRole === "admin" || emailVerified,
     inviteCode: generateInviteCode(userId),
     referredByUserId,
     createdAt: new Date(),
