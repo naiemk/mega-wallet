@@ -61,8 +61,12 @@ function loadDotEnv() {
       if (eq <= 0) continue;
       const key = trimmed.slice(0, eq).trim();
       const value = trimmed.slice(eq + 1).trim();
-      if (process.env[key] === undefined) process.env[key] = value;
+      // FAKE_RAMPS always follows .env so a stale shell export cannot force fake mode.
+      if (key === "FAKE_RAMPS" || process.env[key] === undefined) {
+        process.env[key] = value;
+      }
     }
+    break;
   }
 }
 
