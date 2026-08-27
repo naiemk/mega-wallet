@@ -21,6 +21,25 @@ export interface DepositSession {
   status: "awaiting_payment" | "paid" | "paid_partial" | "failed" | "expired";
 }
 
+export interface StartDepositInput {
+  quoteId: string;
+  userId: string;
+  amountUsdCents: number;
+  clientInvoiceId: string;
+  paymentMode?: "crypto" | "crypto_or_fiat" | "fiat";
+  fiatCurrency?: string;
+  title?: string;
+  /** Fiat amount the customer pays (major units string, e.g. "50.00"). */
+  displayAmount?: string;
+  paymentMethod?: string;
+  provider?: string;
+  country?: string;
+  slippageBps?: number;
+  callbackUrl?: string;
+  /** Checkout UI language (TC `lang`, e.g. en / fa / ar). */
+  lang?: string;
+}
+
 export interface OnRampPort {
   listPaymentMethods(input: {
     sourceCurrency: string;
@@ -38,14 +57,7 @@ export interface OnRampPort {
     userId?: string;
   }): Promise<OnRampQuote[]>;
 
-  startDeposit(input: {
-    quoteId: string;
-    userId: string;
-    amountUsdCents: number;
-    clientInvoiceId: string;
-    paymentMode?: "crypto" | "crypto_or_fiat" | "fiat";
-    fiatCurrency?: string;
-  }): Promise<DepositSession>;
+  startDeposit(input: StartDepositInput): Promise<DepositSession>;
 
   getDepositStatus(externalId: string): Promise<DepositSession>;
 }

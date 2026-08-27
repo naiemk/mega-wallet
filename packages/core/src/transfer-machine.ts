@@ -1,7 +1,10 @@
+export type TransferKind = "remittance" | "wallet_deposit" | "wallet_withdraw";
+
 export type TransferPhase =
   | "quote_issued"
   | "depositing"
   | "deposited"
+  | "completed"
   | "recipient_set"
   | "withdraw_initiated"
   | "withdraw_executed"
@@ -27,8 +30,9 @@ export const TRANSFER_TRANSITIONS: Record<
   readonly TransferPhase[]
 > = {
   quote_issued: ["depositing", "quote_expired"],
-  depositing: ["deposited", "quote_expired", "withdraw_cancelled"],
-  deposited: ["recipient_set"],
+  depositing: ["deposited", "completed", "quote_expired", "withdraw_cancelled"],
+  deposited: ["recipient_set", "completed"],
+  completed: [],
   recipient_set: ["withdraw_initiated"],
   withdraw_initiated: ["withdraw_executed", "withdraw_cancelled", "need_attention"],
   need_attention: ["withdraw_initiated", "withdraw_cancelled"],
@@ -36,6 +40,18 @@ export const TRANSFER_TRANSITIONS: Record<
   withdraw_cancelled: [],
   quote_expired: [],
 };
+
+export const ACTIVE_TRANSFER_PHASES: readonly TransferPhase[] = [
+  "depositing",
+  "deposited",
+  "recipient_set",
+  "withdraw_initiated",
+  "need_attention",
+];
+
+export function isActiveTransferPhase(phase: TransferPhase): boolean {
+  return ACTIVE_TRANSFER_PHASES.includes(phase);
+}
 
 export function canTransition(from: TransferPhase, to: TransferPhase): boolean {
   return TRANSFER_TRANSITIONS[from]?.includes(to) ?? false;
@@ -54,6 +70,7 @@ export function transitionTransfer(
 export function deriveTransferState(phase: TransferPhase): TransferState {
   const depositComplete = [
     "deposited",
+    "completed",
     "recipient_set",
     "withdraw_initiated",
     "withdraw_executed",
@@ -100,4 +117,25 @@ export function stepLabels(phase: TransferPhase): {
               ? "in_progress"
               : "pending",
   };
+}
+
+export function inferTransferKind(quoteId: string | null | undefined, kind?: string | null): TransferKind {
+  if (kind === "remittance" || kind === "wallet_deposit" || kind === "wallet_withdraw") {
+    return kind;
+  }
+  if (quoteId === "wallet") return "wallet_deposit";
+  if (quoteId === "wallet-withdraw") return "wallet_withdraw";
+  return "remittance";
+}
+
+/** Localized Trustless Commerce invoice title for wallet deposits. */
+export function walletDepositInvoiceTitle(lang?: string | null): string {
+  switch (lang) {
+    case "fa":
+      return "واریز دلار به کیف پول";
+    case "ar":
+      return "إيداع دولار في المحفظة";
+    default:
+      return "Deposit USD in Wallet";
+  }
 }

@@ -1,15 +1,18 @@
 import { ulid } from "ulid";
 import { and, desc, eq, or } from "drizzle-orm";
+import type { FxOraclePort, OnRampPort } from "@mega-wallet/core";
 import {
+  inferTransferKind,
   parseShebaRecipient,
   transitionTransfer,
-  type OnRampPort,
+  walletDepositInvoiceTitle,
 } from "@mega-wallet/core";
 import type { AppDb } from "../db/client.js";
-import { quotes, transfers, users } from "../db/schema.js";
+import { quotes, transfers, users, withdrawContacts } from "../db/schema.js";
 import type { LedgerService } from "./ledger.js";
 import type { FakeOnRampAdapter } from "../adapters/fake/on-ramp.js";
 import type { OffRampRegistry } from "../adapters/offramp/registry.js";
+import type { AppConfig } from "../config.js";
 
 export class TransferService {
   constructor(
@@ -17,8 +20,15 @@ export class TransferService {
     private readonly onRamp: OnRampPort,
     private readonly offRamps: OffRampRegistry,
     private readonly ledger: LedgerService,
+    private readonly fx: FxOraclePort,
     private readonly fakeOnRamp?: FakeOnRampAdapter,
+    private readonly config?: Pick<AppConfig, "publicApiUrl" | "slippageBps">,
   ) {}
+
+  async getTransfer(id: string) {
+    const [row] = await this.db.select().from(transfers).where(eq(transfers.id, id)).limit(1);
+    return row ?? null;
+  }
 
   async getActiveTransfer(userId: string) {
     const [row] = await this.db
@@ -41,24 +51,35 @@ export class TransferService {
     return row ?? null;
   }
 
-  async startTransfer(userId: string, quoteId: string) {
-    const active = await this.getActiveTransfer(userId);
-    if (active) throw new Error("Only one active transfer allowed");
-
+  async startTransfer(userId: string, quoteId: string, language?: string) {
     const [quote] = await this.db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1);
     if (!quote) throw new Error("Quote not found");
     if (quote.status !== "active" || quote.expiresAt < new Date()) {
       throw new Error("Quote expired");
     }
 
+    const [profile] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const lang = language ?? profile?.preferredLanguage ?? undefined;
+
     const transferId = ulid();
     const clientInvoiceId = `mw-${transferId}`;
+    const displayAmount = (quote.sourceAmountMinor / 100).toFixed(2);
     const deposit = await this.onRamp.startDeposit({
       quoteId,
       userId,
       amountUsdCents: quote.usdcOutMinor,
       clientInvoiceId,
-      paymentMode: "crypto_or_fiat",
+      paymentMode: "fiat",
+      fiatCurrency: quote.sourceCurrency,
+      displayAmount,
+      paymentMethod: quote.paymentMethod,
+      provider: quote.provider,
+      country: "us",
+      slippageBps: quote.slippageBps ?? this.config?.slippageBps,
+      lang,
+      callbackUrl: this.config?.publicApiUrl
+        ? `${this.config.publicApiUrl.replace(/\/$/, "")}/api/webhooks/trustless-commerce`
+        : undefined,
     });
 
     const now = new Date();
@@ -66,9 +87,12 @@ export class TransferService {
       id: transferId,
       userId,
       quoteId,
+      kind: "remittance",
       phase: "depositing",
       depositExternalId: deposit.externalId,
       depositPayUrl: deposit.payUrl,
+      sourceCurrency: quote.sourceCurrency,
+      paymentMode: "fiat",
       usdAmountCents: quote.usdcOutMinor,
       destAmountMinor: quote.destOutMinor,
       createdAt: now,
@@ -77,7 +101,14 @@ export class TransferService {
 
     await this.db.update(quotes).set({ status: "consumed" }).where(eq(quotes.id, quoteId));
 
-    return { transferId, deposit };
+    if (quote.paymentMethod) {
+      await this.db
+        .update(users)
+        .set({ lastAttemptedPaymentMethod: quote.paymentMethod })
+        .where(eq(users.id, userId));
+    }
+
+    return { transferId, deposit, reused: false as const, kind: "remittance" as const };
   }
 
   async pollDeposit(transferId: string) {
@@ -86,36 +117,77 @@ export class TransferService {
 
     const status = await this.onRamp.getDepositStatus(row.depositExternalId);
     if (status.status === "paid" || status.status === "paid_partial") {
-      if (row.phase === "depositing") {
-        const nextPhase = transitionTransfer("depositing", "deposited");
-        await this.db
-          .update(transfers)
-          .set({ phase: nextPhase, updatedAt: new Date() })
-          .where(eq(transfers.id, transferId));
-
-        await this.ledger.appendEvent({
-          type: "deposit_credited",
-          userId: row.userId,
-          amountUsdCents: row.usdAmountCents,
-          transferId,
-        });
-
-        const [user] = await this.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
-        if (user) {
-          await this.db
-            .update(users)
-            .set({ lastSuccessfulPaymentMethod: user.lastAttemptedPaymentMethod ?? user.preferredPaymentMethod })
-            .where(eq(users.id, row.userId));
-        }
-      }
+      await this.creditDepositIfNeeded(row);
     }
     return status;
+  }
+
+  /** Credit ledger once when invoice is paid (poll or webhook). */
+  async creditDepositIfNeeded(row: typeof transfers.$inferSelect) {
+    if (row.phase !== "depositing") return row;
+
+    const kind = inferTransferKind(row.quoteId, row.kind);
+    const nextPhase =
+      kind === "wallet_deposit"
+        ? transitionTransfer("depositing", "completed")
+        : transitionTransfer("depositing", "deposited");
+
+    await this.db
+      .update(transfers)
+      .set({ phase: nextPhase, updatedAt: new Date() })
+      .where(eq(transfers.id, row.id));
+
+    await this.ledger.appendEvent({
+      type: "deposit_credited",
+      userId: row.userId,
+      amountUsdCents: row.usdAmountCents,
+      transferId: row.id,
+    });
+
+    const [user] = await this.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
+    if (user) {
+      await this.db
+        .update(users)
+        .set({
+          lastSuccessfulPaymentMethod:
+            user.lastAttemptedPaymentMethod ?? user.preferredPaymentMethod,
+        })
+        .where(eq(users.id, row.userId));
+    }
+
+    const [updated] = await this.db.select().from(transfers).where(eq(transfers.id, row.id)).limit(1);
+    return updated ?? row;
+  }
+
+  async handleDepositWebhook(externalId: string) {
+    const [row] = await this.db
+      .select()
+      .from(transfers)
+      .where(eq(transfers.depositExternalId, externalId))
+      .limit(1);
+    if (!row) {
+      // Also match clientInvoiceId pattern via id suffix
+      const byId = await this.db.select().from(transfers).orderBy(desc(transfers.updatedAt));
+      const match = byId.find(
+        (t) =>
+          t.depositExternalId === externalId ||
+          t.id === externalId.replace(/^mw-(wallet-)?/, "") ||
+          `mw-${t.id}` === externalId ||
+          `mw-wallet-${t.id}` === externalId,
+      );
+      if (!match) return null;
+      return this.creditDepositIfNeeded(match);
+    }
+    return this.creditDepositIfNeeded(row);
   }
 
   async setRecipient(transferId: string, userId: string, name: string, sheba: string) {
     const [row] = await this.db.select().from(transfers).where(eq(transfers.id, transferId)).limit(1);
     if (!row || row.userId !== userId) throw new Error("Transfer not found");
     if (row.phase !== "deposited") throw new Error("Deposit not complete");
+    if (inferTransferKind(row.quoteId, row.kind) !== "remittance") {
+      throw new Error("Recipient only for remittance transfers");
+    }
 
     const recipient = parseShebaRecipient(name, sheba);
     const nextPhase = transitionTransfer("deposited", "recipient_set");
@@ -185,9 +257,35 @@ export class TransferService {
     });
   }
 
+  async cancelWithdrawal(transferId: string, userId: string) {
+    const [row] = await this.db.select().from(transfers).where(eq(transfers.id, transferId)).limit(1);
+    if (!row || row.userId !== userId) throw new Error("Transfer not found");
+    if (row.phase !== "withdraw_initiated" && row.phase !== "need_attention") {
+      throw new Error("Cannot cancel in current state");
+    }
+
+    const nextPhase = transitionTransfer(row.phase as "withdraw_initiated", "withdraw_cancelled");
+    await this.db
+      .update(transfers)
+      .set({
+        phase: nextPhase,
+        withdrawStatus: "cancelled",
+        updatedAt: new Date(),
+      })
+      .where(eq(transfers.id, transferId));
+
+    await this.ledger.appendEvent({
+      type: "withdraw_released",
+      userId,
+      amountUsdCents: row.usdAmountCents,
+      transferId,
+    });
+
+    return { transferId, phase: nextPhase };
+  }
+
   async listOperator(filters: { status?: string; search?: string }) {
-    let query = this.db.select().from(transfers).orderBy(desc(transfers.updatedAt));
-    const rows = await query;
+    const rows = await this.db.select().from(transfers).orderBy(desc(transfers.updatedAt));
     return rows.filter((r) => {
       if (filters.status && r.withdrawStatus !== filters.status && r.phase !== filters.status) {
         return false;
@@ -204,48 +302,96 @@ export class TransferService {
     });
   }
 
-  /** Test helper */
   async simulateDepositPaid(transferId: string) {
     if (!this.fakeOnRamp) return;
     const [row] = await this.db.select().from(transfers).where(eq(transfers.id, transferId)).limit(1);
     if (row?.depositExternalId) this.fakeOnRamp.markPaid(row.depositExternalId);
   }
 
-  async startWalletDeposit(userId: string, amountUsdCents: number) {
-    const active = await this.getActiveTransfer(userId);
-    if (active) throw new Error("Only one active transfer allowed");
+  async startWalletDeposit(
+    userId: string,
+    input: {
+      amountUsdCents: number;
+      sourceCurrency?: string;
+      sourceAmountMinor?: number;
+      paymentMode?: "crypto" | "fiat" | "crypto_or_fiat";
+      paymentMethod?: string;
+      provider?: string;
+      language?: string;
+    },
+  ) {
+    const amountUsdCents = Math.round(input.amountUsdCents);
+    if (!Number.isFinite(amountUsdCents) || amountUsdCents <= 0) {
+      throw new Error("Invalid amount");
+    }
 
+    const paymentMode = input.paymentMode ?? "fiat";
+    const sourceCurrency = input.sourceCurrency ?? "USD";
+    const sourceAmountMinor = input.sourceAmountMinor ?? amountUsdCents;
     const transferId = ulid();
     const clientInvoiceId = `mw-wallet-${transferId}`;
+    const title = walletDepositInvoiceTitle(input.language);
+    const displayAmount = (sourceAmountMinor / 100).toFixed(2);
+
     const deposit = await this.onRamp.startDeposit({
       quoteId: "wallet",
       userId,
       amountUsdCents,
       clientInvoiceId,
-      paymentMode: "crypto_or_fiat",
+      paymentMode,
+      fiatCurrency: sourceCurrency,
+      title,
+      displayAmount,
+      paymentMethod: input.paymentMethod,
+      provider: input.provider,
+      country: "us",
+      slippageBps: this.config?.slippageBps,
+      lang: input.language,
+      callbackUrl: this.config?.publicApiUrl
+        ? `${this.config.publicApiUrl.replace(/\/$/, "")}/api/webhooks/trustless-commerce`
+        : undefined,
     });
+
+    if (input.paymentMethod) {
+      await this.db
+        .update(users)
+        .set({ lastAttemptedPaymentMethod: input.paymentMethod })
+        .where(eq(users.id, userId));
+    }
 
     const now = new Date();
     await this.db.insert(transfers).values({
       id: transferId,
       userId,
       quoteId: "wallet",
+      kind: "wallet_deposit",
       phase: "depositing",
       depositExternalId: deposit.externalId,
       depositPayUrl: deposit.payUrl,
+      sourceCurrency,
+      paymentMode,
       usdAmountCents: amountUsdCents,
       destAmountMinor: 0,
       createdAt: now,
       updatedAt: now,
     });
 
-    return { transferId, deposit };
+    return {
+      transferId,
+      deposit,
+      usdAmountCents: amountUsdCents,
+      kind: "wallet_deposit" as const,
+      reused: false as const,
+    };
   }
 
-  async startWalletWithdrawal(userId: string, amountUsdCents: number, name: string, sheba: string) {
-    const active = await this.getActiveTransfer(userId);
-    if (active) throw new Error("Only one active transfer allowed");
-
+  async startWalletWithdrawal(
+    userId: string,
+    amountUsdCents: number,
+    name: string,
+    sheba: string,
+    opts?: { saveContact?: boolean },
+  ) {
     const balance = await this.ledger.getBalance(userId);
     if (balance.availableUsdCents < amountUsdCents) throw new Error("Insufficient balance");
 
@@ -253,15 +399,21 @@ export class TransferService {
     const transferId = ulid();
     const now = new Date();
 
+    const rate = await this.fx.getRate("USDT", "IRR");
+    const destAmountMinor = rate
+      ? Math.round((amountUsdCents / 100) * rate.rate)
+      : Math.round(amountUsdCents * 50000);
+
     await this.db.insert(transfers).values({
       id: transferId,
       userId,
       quoteId: "wallet-withdraw",
+      kind: "wallet_withdraw",
       phase: "recipient_set",
       recipientName: recipient.name,
       recipientSheba: recipient.sheba,
       usdAmountCents: amountUsdCents,
-      destAmountMinor: amountUsdCents * 50000,
+      destAmountMinor,
       createdAt: now,
       updatedAt: now,
     });
@@ -291,6 +443,55 @@ export class TransferService {
       transferId,
     });
 
-    return { transferId, payout };
+    if (opts?.saveContact) {
+      await this.saveContact(userId, recipient.name, recipient.sheba);
+    }
+
+    return { transferId, payout, kind: "wallet_withdraw" as const };
+  }
+
+  async listContacts(userId: string) {
+    return this.db
+      .select()
+      .from(withdrawContacts)
+      .where(eq(withdrawContacts.userId, userId))
+      .orderBy(desc(withdrawContacts.createdAt));
+  }
+
+  async saveContact(userId: string, name: string, sheba: string) {
+    const recipient = parseShebaRecipient(name, sheba);
+    const existing = await this.db
+      .select()
+      .from(withdrawContacts)
+      .where(and(eq(withdrawContacts.userId, userId), eq(withdrawContacts.sheba, recipient.sheba)))
+      .limit(1);
+    if (existing[0]) {
+      await this.db
+        .update(withdrawContacts)
+        .set({ name: recipient.name })
+        .where(eq(withdrawContacts.id, existing[0].id));
+      return existing[0];
+    }
+    const id = ulid();
+    const row = {
+      id,
+      userId,
+      name: recipient.name,
+      sheba: recipient.sheba,
+      createdAt: new Date(),
+    };
+    await this.db.insert(withdrawContacts).values(row);
+    return row;
+  }
+
+  async deleteContact(userId: string, contactId: string) {
+    const [row] = await this.db
+      .select()
+      .from(withdrawContacts)
+      .where(and(eq(withdrawContacts.id, contactId), eq(withdrawContacts.userId, userId)))
+      .limit(1);
+    if (!row) throw new Error("Contact not found");
+    await this.db.delete(withdrawContacts).where(eq(withdrawContacts.id, contactId));
+    return { ok: true };
   }
 }

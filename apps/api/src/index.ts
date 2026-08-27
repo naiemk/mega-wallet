@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { createAuth } from "./auth.js";
+import { createAuth, runAuthMigrations } from "./auth.js";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
@@ -9,8 +9,6 @@ import { initSchema } from "./db/init-schema.js";
 import { FakeOnRampAdapter } from "./adapters/fake/on-ramp.js";
 import { FakeOffRampAdapter } from "./adapters/fake/off-ramp.js";
 import { TrustlessCommerceAdapter } from "./adapters/trustless-commerce/index.js";
-import { OnramperAdapter } from "./adapters/onramper/index.js";
-import { CompositeOnRampAdapter } from "./adapters/composite-on-ramp.js";
 import {
   AggregatingFxOracle,
   BitpinFxProvider,
@@ -32,23 +30,24 @@ mkdirSync(dirname(config.eventLogPath), { recursive: true });
 
 const db = createDb(config.databaseUrl);
 initSchema(db);
+await runAuthMigrations(config);
 
 const fakeOnRamp = new FakeOnRampAdapter();
 const fakeOffRamp = new FakeOffRampAdapter();
 const tcAdapter = new TrustlessCommerceAdapter({
   baseUrl: config.trustlessCommerceUrl,
-  operatorWallets: { base: config.operatorWallets.base, tron: config.operatorWallets.tron },
+  operatorWallets: {
+    ethereum: config.operatorWallets.ethereum,
+    base: config.operatorWallets.base,
+    tron: config.operatorWallets.tron,
+  },
+  callbackBaseUrl: config.publicApiUrl,
+  slippageBps: config.slippageBps,
+  fakeRamps: config.fakeRamps,
 });
 
-const onRamp = config.fakeRamps
-  ? fakeOnRamp
-  : new CompositeOnRampAdapter(
-      new OnramperAdapter({
-        apiKey: config.onramperApiKey,
-        signingKey: config.onramperSigningKey,
-      }),
-      tcAdapter,
-    );
+/** TC owns quotes + invoices when real; Onramper is not called directly. */
+const onRamp = config.fakeRamps ? fakeOnRamp : tcAdapter;
 
 const shebaOffRamp = new ShebaOffRampAdapter();
 const onramperSellOffRamp = new OnramperSellOffRampAdapter({ apiKey: config.onramperApiKey });
@@ -77,7 +76,15 @@ const eventLog = createEventLog(config.eventLogPath, config.s3EventLogBucket
 const auth = createAuth(config);
 const ledger = new LedgerService(db, eventLog, config);
 const quotes = new QuoteService(db, onRamp, fx, config);
-const transfers = new TransferService(db, onRamp, offRampRegistry, ledger, fakeOnRamp);
+const transfers = new TransferService(
+  db,
+  onRamp,
+  offRampRegistry,
+  ledger,
+  fx,
+  config.fakeRamps ? fakeOnRamp : undefined,
+  { publicApiUrl: config.publicApiUrl, slippageBps: config.slippageBps },
+);
 
 const app = createApp({ config, db, auth, quotes, transfers, ledger });
 

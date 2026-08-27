@@ -36,6 +36,9 @@ export const transfers = sqliteTable("transfers", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   quoteId: text("quote_id").notNull(),
+  kind: text("kind", { enum: ["remittance", "wallet_deposit", "wallet_withdraw"] })
+    .notNull()
+    .default("remittance"),
   phase: text("phase").notNull(),
   depositExternalId: text("deposit_external_id"),
   depositPayUrl: text("deposit_pay_url"),
@@ -45,10 +48,20 @@ export const transfers = sqliteTable("transfers", {
   withdrawStatus: text("withdraw_status"),
   operatorComment: text("operator_comment"),
   evidencePath: text("evidence_path"),
+  sourceCurrency: text("source_currency"),
+  paymentMode: text("payment_mode"),
   usdAmountCents: integer("usd_amount_cents").notNull(),
   destAmountMinor: integer("dest_amount_minor").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const withdrawContacts = sqliteTable("withdraw_contacts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  sheba: text("sheba").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
 export const ledgerEvents = sqliteTable("ledger_events", {

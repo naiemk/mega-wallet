@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Transfer Status</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#0b1c30",
+                        "on-surface-variant": "#44474e",
+                        "surface-dim": "#cbdbf5",
+                        "tertiary": "#070b0d",
+                        "tertiary-fixed": "#e0e3e5",
+                        "surface-container-low": "#eff4ff",
+                        "surface": "#f8f9ff",
+                        "secondary-fixed": "#8df7c1",
+                        "inverse-surface": "#213145",
+                        "inverse-on-surface": "#eaf1ff",
+                        "background": "#f8f9ff",
+                        "on-tertiary-container": "#85898b",
+                        "surface-tint": "#465f88",
+                        "primary": "#000a1e",
+                        "outline-variant": "#c4c6cf",
+                        "surface-variant": "#d3e4fe",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#c4c7c9",
+                        "tertiary-container": "#1e2224",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#71dba6",
+                        "on-primary-fixed": "#001b3d",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777f",
+                        "on-secondary-fixed-variant": "#005235",
+                        "on-tertiary-fixed-variant": "#434749",
+                        "secondary-container": "#8af5be",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#708ab5",
+                        "on-secondary-fixed": "#002113",
+                        "inverse-primary": "#aec7f6",
+                        "secondary": "#006c47",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#0b1c30",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d6e3ff",
+                        "on-secondary-container": "#00714b",
+                        "primary-fixed-dim": "#aec7f6",
+                        "on-tertiary-fixed": "#181c1e",
+                        "primary-container": "#002147",
+                        "surface-container": "#e5eeff",
+                        "on-primary-fixed-variant": "#2d476f",
+                        "surface-bright": "#f8f9ff",
+                        "surface-container-high": "#dce9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "container-margin": "20px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "display-md": ["Inter"],
+                        "numeric-xl": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "display-md-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "numeric-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #f8f9ff; color: #0b1c30; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .icon-fill { font-variation-settings: 'FILL' 1; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background min-h-screen flex flex-col font-body-md antialiased md:items-center md:justify-center">
+<!-- Mobile Container -->
+<div class="w-full md:max-w-md bg-surface min-h-screen md:min-h-[800px] md:shadow-lg md:rounded-xl flex flex-col relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-on-background flex items-center justify-between px-container-margin h-12 z-10">
+<button aria-label="Back" class="text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity duration-200 active:scale-95 p-2 -ml-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-display-md-mobile text-display-md-mobile font-bold text-primary dark:text-primary-fixed">Status</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-container-margin py-lg flex flex-col gap-xl overflow-y-auto pb-32">
+<!-- 3-Step Progress Stepper -->
+<div class="flex items-center justify-between w-full px-4 mb-4">
+<!-- Step 1 -->
+<div class="flex flex-col items-center gap-xs relative z-10">
+<div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-on-secondary shadow-sm">
+<span class="material-symbols-outlined text-sm icon-fill" data-icon="check">check</span>
+</div>
+<span class="font-label-md text-label-md text-secondary">Details</span>
+</div>
+<!-- Connector 1 -->
+<div class="flex-1 h-[2px] bg-secondary -mt-6 mx-2 relative z-0"></div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center gap-xs relative z-10">
+<div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-on-secondary shadow-sm">
+<span class="material-symbols-outlined text-sm icon-fill" data-icon="check">check</span>
+</div>
+<span class="font-label-md text-label-md text-secondary">Review</span>
+</div>
+<!-- Connector 2 -->
+<div class="flex-1 h-[2px] bg-secondary -mt-6 mx-2 relative z-0"></div>
+<!-- Step 3 (Active) -->
+<div class="flex flex-col items-center gap-xs relative z-10">
+<div class="w-8 h-8 rounded-full bg-surface border-2 border-primary flex items-center justify-center text-primary shadow-sm">
+<span class="font-label-md text-label-md">3</span>
+</div>
+<span class="font-label-md text-label-md text-primary">Status</span>
+</div>
+</div>
+<!-- Status Hero -->
+<div class="flex flex-col items-center justify-center py-lg text-center">
+<div class="w-20 h-20 bg-surface-container-high rounded-full flex items-center justify-center mb-md relative">
+<div class="absolute inset-0 rounded-full border-4 border-secondary border-t-transparent animate-spin opacity-20"></div>
+<span class="material-symbols-outlined text-[40px] text-primary" data-icon="sync">sync</span>
+</div>
+<h2 class="font-display-md text-display-md text-primary mb-xs">Transfer Processing</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[250px]">Your funds are currently being converted and sent to the recipient.</p>
+</div>
+<!-- Transfer Timeline Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_2px_8px_rgba(11,28,48,0.1)] p-md flex flex-col gap-md">
+<h3 class="font-body-lg text-body-lg font-semibold text-primary mb-2 border-b border-outline-variant pb-sm">Transaction Timeline</h3>
+<div class="relative pl-6 flex flex-col gap-6">
+<!-- Vertical Line -->
+<div class="absolute left-[11px] top-[14px] bottom-[14px] w-[2px] bg-surface-container-high"></div>
+<div class="absolute left-[11px] top-[14px] h-[50%] w-[2px] bg-secondary"></div>
+<!-- Timeline Item 1 -->
+<div class="relative flex flex-col gap-xs">
+<div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-secondary shadow-[0_0_0_4px_#f8f9ff]"></div>
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md font-semibold text-primary">Funds Received</span>
+<span class="font-label-md text-label-md text-on-surface-variant">10:42 AM</span>
+</div>
+<p class="font-label-md text-label-md text-outline">Debit from USD Wallet</p>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative flex flex-col gap-xs">
+<div class="absolute -left-[26px] top-0 w-[14px] h-[14px] rounded-full bg-surface border-2 border-secondary shadow-[0_0_0_4px_#f8f9ff] flex items-center justify-center z-10">
+<div class="w-1.5 h-1.5 bg-secondary rounded-full animate-pulse"></div>
+</div>
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md font-semibold text-primary">Converting</span>
+<span class="font-label-md text-label-md text-on-surface-variant">In Progress</span>
+</div>
+<p class="font-label-md text-label-md text-outline">Exchanging USD to EUR at 0.92</p>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative flex flex-col gap-xs opacity-50">
+<div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-outline-variant shadow-[0_0_0_4px_#f8f9ff]"></div>
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md font-semibold text-on-surface-variant">Funds Sent</span>
+<span class="font-label-md text-label-md text-outline">Pending</span>
+</div>
+<p class="font-label-md text-label-md text-outline">Transferring to recipient bank</p>
+</div>
+<!-- Timeline Item 4 -->
+<div class="relative flex flex-col gap-xs opacity-50">
+<div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-outline-variant shadow-[0_0_0_4px_#f8f9ff]"></div>
+<div class="flex justify-between items-start">
+<span class="font-body-md text-body-md font-semibold text-on-surface-variant">Expected Arrival</span>
+<span class="font-label-md text-label-md text-outline">~11:00 AM</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Transaction Summary Mini -->
+<div class="bg-surface-container-low rounded-lg p-md flex items-center justify-between border border-surface-variant">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-primary">Alex Johnson</span>
+<span class="font-label-md text-label-md text-on-surface-variant">EUR Account</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-body-md text-body-md font-bold text-primary">€850.00</span>
+<span class="font-label-md text-label-md text-outline">-$1,000.00</span>
+</div>
+</div>
+</main>
+<!-- Bottom Action Area -->
+<div class="fixed bottom-0 left-0 right-0 md:absolute bg-surface-container-lowest p-container-margin shadow-[0_-4px_12px_rgba(11,28,48,0.05)] z-20">
+<button class="w-full h-12 bg-primary text-on-primary rounded-lg font-body-lg text-body-lg font-semibold hover:bg-primary-container active:scale-95 transition-all duration-200 shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="account_balance_wallet">account_balance_wallet</span>
+                Back to Wallet
+            </button>
+</div>
+</div>
+</body></html>

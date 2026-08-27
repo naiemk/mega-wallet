@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Transaction History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#0b1c30",
+                        "on-surface-variant": "#44474e",
+                        "surface-dim": "#cbdbf5",
+                        "tertiary": "#070b0d",
+                        "tertiary-fixed": "#e0e3e5",
+                        "surface-container-low": "#eff4ff",
+                        "surface": "#f8f9ff",
+                        "secondary-fixed": "#8df7c1",
+                        "inverse-surface": "#213145",
+                        "inverse-on-surface": "#eaf1ff",
+                        "background": "#f8f9ff",
+                        "on-tertiary-container": "#85898b",
+                        "surface-tint": "#465f88",
+                        "primary": "#000a1e",
+                        "outline-variant": "#c4c6cf",
+                        "surface-variant": "#d3e4fe",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#c4c7c9",
+                        "tertiary-container": "#1e2224",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#71dba6",
+                        "on-primary-fixed": "#001b3d",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777f",
+                        "on-secondary-fixed-variant": "#005235",
+                        "on-tertiary-fixed-variant": "#434749",
+                        "secondary-container": "#8af5be",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#708ab5",
+                        "on-secondary-fixed": "#002113",
+                        "inverse-primary": "#aec7f6",
+                        "secondary": "#006c47",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#0b1c30",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d6e3ff",
+                        "on-secondary-container": "#00714b",
+                        "primary-fixed-dim": "#aec7f6",
+                        "on-tertiary-fixed": "#181c1e",
+                        "primary-container": "#002147",
+                        "surface-container": "#e5eeff",
+                        "on-primary-fixed-variant": "#2d476f",
+                        "surface-bright": "#f8f9ff",
+                        "surface-container-high": "#dce9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "container-margin": "20px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "12px",
+                        "safe": "env(safe-area-inset-bottom)"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "display-md": ["Inter"],
+                        "numeric-xl": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "display-md-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "display-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "numeric-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "display-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col pt-12 pb-[calc(64px+env(safe-area-inset-bottom))]">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-background w-full top-0 sticky z-40 flex items-center justify-between px-container-margin h-12">
+<button class="text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity duration-200 active:scale-95 flex items-center justify-center w-10 h-10 -ml-2 rounded-full">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="font-display-md-mobile text-display-md-mobile font-bold text-primary dark:text-primary-fixed flex-1 text-center pr-8">History</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-container-margin py-lg flex flex-col gap-lg">
+<!-- Search & Filter Controls -->
+<section class="flex flex-col gap-md">
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="w-full pl-10 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-lg font-body-md text-on-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Search transactions..." type="text"/>
+</div>
+<!-- Filter Pills -->
+<div class="flex overflow-x-auto hide-scrollbar gap-sm pb-1">
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-primary text-on-primary font-label-md transition-colors shadow-sm">All</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant border border-outline-variant font-label-md hover:bg-surface-container-highest transition-colors">Deposits</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant border border-outline-variant font-label-md hover:bg-surface-container-highest transition-colors">Withdrawals</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant border border-outline-variant font-label-md hover:bg-surface-container-highest transition-colors">Transfers</button>
+</div>
+</section>
+<!-- Transaction List -->
+<section class="flex flex-col gap-md">
+<h2 class="font-label-md text-on-surface-variant uppercase tracking-wider">November 2023</h2>
+<ul class="flex flex-col gap-2">
+<!-- Deposit (Completed) -->
+<li class="bg-surface-container-lowest p-md rounded-lg shadow-[0_2px_8px_rgba(11,28,48,0.1)] flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">south_west</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-lg text-on-background font-semibold">Salary Deposit</span>
+<span class="font-body-md text-on-surface-variant">Tech Corp Inc. • Nov 28</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-body-lg text-secondary font-semibold">+$4,250.00</span>
+<span class="font-label-md text-secondary">Completed</span>
+</div>
+</li>
+<!-- Transfer (Completed) -->
+<li class="bg-surface-container-lowest p-md rounded-lg shadow-[0_2px_8px_rgba(11,28,48,0.1)] flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">sync_alt</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-lg text-on-background font-semibold">Savings Transfer</span>
+<span class="font-body-md text-on-surface-variant">To Vault • Nov 25</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-body-lg text-on-background font-semibold">-$500.00</span>
+<span class="font-label-md text-on-surface-variant">Completed</span>
+</div>
+</li>
+<!-- Withdrawal (Pending) -->
+<li class="bg-surface-container-lowest p-md rounded-lg shadow-[0_2px_8px_rgba(11,28,48,0.1)] flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer opacity-80">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">north_east</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-lg text-on-background font-semibold">ATM Withdrawal</span>
+<span class="font-body-md text-on-surface-variant">Main St Branch • Nov 24</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-body-lg text-on-background font-semibold">-$100.00</span>
+<span class="font-label-md text-outline italic">Pending</span>
+</div>
+</li>
+</ul>
+<h2 class="font-label-md text-on-surface-variant uppercase tracking-wider mt-sm">October 2023</h2>
+<ul class="flex flex-col gap-2">
+<!-- Deposit (Completed) -->
+<li class="bg-surface-container-lowest p-md rounded-lg shadow-[0_2px_8px_rgba(11,28,48,0.1)] flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">south_west</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-lg text-on-background font-semibold">Dividend Payout</span>
+<span class="font-body-md text-on-surface-variant">Vanguard ETF • Oct 31</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-body-lg text-secondary font-semibold">+$124.50</span>
+<span class="font-label-md text-secondary">Completed</span>
+</div>
+</li>
+</ul>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container-lowest dark:bg-on-background shadow-[0_-2px_8px_rgba(11,28,48,0.1)] flex justify-around items-center h-16 pb-safe md:hidden">
+<!-- Wallet (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors active:scale-90 transition-transform duration-150 flex-1 h-full" href="#">
+<span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Wallet</span>
+</a>
+<!-- Transfer (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors active:scale-90 transition-transform duration-150 flex-1 h-full" href="#">
+<span class="material-symbols-outlined mb-1">swap_horiz</span>
+<span class="font-label-md text-label-md">Transfer</span>
+</a>
+<!-- History (Active) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-secondary-fixed font-bold hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors active:scale-90 transition-transform duration-150 flex-1 h-full" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<!-- Account (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors active:scale-90 transition-transform duration-150 flex-1 h-full" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-md text-label-md">Account</span>
+</a>
+</nav>
+</body></html>

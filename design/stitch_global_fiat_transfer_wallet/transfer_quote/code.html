@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Transfer Quote</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-background": "#0b1c30",
+                      "on-surface-variant": "#44474e",
+                      "surface-dim": "#cbdbf5",
+                      "tertiary": "#070b0d",
+                      "tertiary-fixed": "#e0e3e5",
+                      "surface-container-low": "#eff4ff",
+                      "surface": "#f8f9ff",
+                      "secondary-fixed": "#8df7c1",
+                      "inverse-surface": "#213145",
+                      "inverse-on-surface": "#eaf1ff",
+                      "background": "#f8f9ff",
+                      "on-tertiary-container": "#85898b",
+                      "surface-tint": "#465f88",
+                      "primary": "#000a1e",
+                      "outline-variant": "#c4c6cf",
+                      "surface-variant": "#d3e4fe",
+                      "error": "#ba1a1a",
+                      "tertiary-fixed-dim": "#c4c7c9",
+                      "tertiary-container": "#1e2224",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#d3e4fe",
+                      "secondary-fixed-dim": "#71dba6",
+                      "on-primary-fixed": "#001b3d",
+                      "on-primary": "#ffffff",
+                      "outline": "#74777f",
+                      "on-secondary-fixed-variant": "#005235",
+                      "on-tertiary-fixed-variant": "#434749",
+                      "secondary-container": "#8af5be",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-container": "#708ab5",
+                      "on-secondary-fixed": "#002113",
+                      "inverse-primary": "#aec7f6",
+                      "secondary": "#006c47",
+                      "on-error-container": "#93000a",
+                      "on-surface": "#0b1c30",
+                      "on-error": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "primary-fixed": "#d6e3ff",
+                      "on-secondary-container": "#00714b",
+                      "primary-fixed-dim": "#aec7f6",
+                      "on-tertiary-fixed": "#181c1e",
+                      "primary-container": "#002147",
+                      "surface-container": "#e5eeff",
+                      "on-primary-fixed-variant": "#2d476f",
+                      "surface-bright": "#f8f9ff",
+                      "surface-container-high": "#dce9ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "base": "4px",
+                      "sm": "8px",
+                      "xl": "32px",
+                      "container-margin": "20px",
+                      "xs": "4px",
+                      "lg": "24px",
+                      "gutter": "12px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display-md": [
+                              "Inter"
+                      ],
+                      "numeric-xl": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "display-md-mobile": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "numeric-xl": [
+                              "36px",
+                              {
+                                      "lineHeight": "44px",
+                                      "letterSpacing": "-0.03em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-md-mobile": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+          font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface h-full flex flex-col font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface flex items-center justify-between px-container-margin h-12 z-40">
+<button class="text-primary hover:opacity-80 transition-opacity duration-200 active:scale-95 flex items-center justify-center w-10 h-10 -ml-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-display-md-mobile text-display-md-mobile font-bold text-primary">Transfer</h1>
+<div class="w-10"></div> <!-- Spacer for balance -->
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto pb-[80px]">
+<div class="max-w-xl mx-auto px-container-margin pt-sm">
+<!-- Transfer Quote Card (Glassmorphism inspired, safe fintech execution) -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_2px_8px_rgba(11,28,48,0.1)] overflow-hidden mb-lg">
+<div class="p-md">
+<!-- You Send -->
+<div class="relative group">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs">You Send</label>
+<div class="flex items-center justify-between rounded-lg border border-outline-variant group-focus-within:border-primary group-focus-within:border-2 bg-surface-container-low transition-colors duration-200 px-md py-sm">
+<input class="bg-transparent border-none p-0 focus:ring-0 font-numeric-xl text-numeric-xl text-primary w-2/3 outline-none" inputmode="decimal" type="text" value="1,000.00"/>
+<div class="flex items-center bg-[#EDF2F7] rounded-full pl-1 pr-3 py-1 cursor-pointer hover:bg-tertiary-fixed transition-colors">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden mr-2">
+<img class="w-full h-full object-cover" data-alt="A small circular icon representing the United States flag, minimalist and flat design style. The colors are accurate and vibrant, ensuring legibility at small sizes. Used within a light-mode corporate modern fintech interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8bIct6t5ySojucwMZT9w0NhK1WytEc5k6pnWoiariD6JcG9YnK3ZvEm52c3hrVYTqOEozghuETULRiO02NQLAH4monlLYY9XB_RuAupma9AzwrEBWOgPZG0d-RW_VQGX6MnUgLcT0vJVGjVE_diaDfk75JAMTBuJB-LbLvOOzJVvAvoujbkHphRwYQbVa_zGzjtOOK00iyj6Cbpf3VioyIIneC43GjX0oyKyGyo4a_HQwoTV1ON5eoA"/>
+</div>
+<span class="font-label-md text-label-md text-on-background">USD</span>
+<span class="material-symbols-outlined text-on-surface-variant ml-1 text-[16px]" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Breakdown (Exchange Rate, Fees, Est. Arrival) -->
+<div class="my-md ml-sm pl-sm border-l-2 border-surface-variant space-y-sm relative">
+<!-- Connecting Line Decoration -->
+<div class="absolute left-[-2px] top-1/2 w-[2px] h-[10px] bg-primary-container z-10 hidden"></div>
+<div class="flex items-start justify-between font-body-md text-body-md text-on-surface-variant">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-outline" data-icon="horizontal_rule">horizontal_rule</span>
+<span>Fee</span>
+</div>
+<span class="text-on-background font-medium">- 4.50 USD</span>
+</div>
+<div class="flex items-start justify-between font-body-md text-body-md text-on-surface-variant">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-outline" data-icon="horizontal_rule">horizontal_rule</span>
+<span>Amount we'll convert</span>
+</div>
+<span class="text-on-background font-medium">995.50 USD</span>
+</div>
+<div class="flex items-start justify-between font-body-md text-body-md">
+<div class="flex items-center gap-xs text-primary-container font-medium">
+<span class="material-symbols-outlined text-[16px]" data-icon="close">close</span>
+<span>0.9124</span>
+</div>
+<span class="text-primary-container font-medium">Guaranteed rate (48h)</span>
+</div>
+</div>
+<!-- Recipient Receives -->
+<div class="relative group">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs">Recipient Receives</label>
+<div class="flex items-center justify-between rounded-lg border border-outline-variant group-focus-within:border-primary group-focus-within:border-2 bg-surface-container-low transition-colors duration-200 px-md py-sm">
+<input class="bg-transparent border-none p-0 focus:ring-0 font-numeric-xl text-numeric-xl text-primary w-2/3 outline-none opacity-80" inputmode="decimal" readonly="" type="text" value="908.29"/>
+<div class="flex items-center bg-[#EDF2F7] rounded-full pl-1 pr-3 py-1 cursor-pointer hover:bg-tertiary-fixed transition-colors">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden mr-2">
+<img class="w-full h-full object-cover" data-alt="A small circular icon representing the European Union flag, minimalist and flat design style. The blue background and yellow stars are clearly visible. Used within a light-mode corporate modern fintech interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRzqupIvBe3c9bhO7HXE8a49-aFvk-P1PCmX6YfdPI8dEgyYWnMr9Xp4CNRtv_4wc98QAatngOpKHZG4jaSk6Cn1ak9h6hX7GL_IqIiz6iqy40RIvHEyHeOXklgsBgf7IlwNyo6zHo1_-xBdKL2ihlHK2w-hhK59lwEavCy5lYpDoGJyucuVfLOkBL2ZB3wdbpPyNvNCcP1PA26_k2lrqKXgdr8oW36ivuFw5sJrKxVkcP4e5z3IkCnQ"/>
+</div>
+<span class="font-label-md text-label-md text-on-background">EUR</span>
+<span class="material-symbols-outlined text-on-surface-variant ml-1 text-[16px]" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Info Bar (Arrival Estimate) -->
+<div class="flex items-center gap-md bg-surface-container-highest rounded-lg p-md mb-lg border border-surface-variant">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-fixed" data-icon="bolt">bolt</span>
+</div>
+<div>
+<h3 class="font-body-md text-body-md font-medium text-primary">Should arrive in seconds</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Fastest and cheapest transfer option.</p>
+</div>
+</div>
+<!-- Continue Button -->
+<div class="mt-xl pb-lg">
+<button class="w-full bg-primary text-on-primary rounded-lg py-sm px-md h-12 font-display-md-mobile text-display-md-mobile flex items-center justify-center transition-transform active:scale-[0.98] hover:bg-primary-container">
+                    Continue
+                </button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container-lowest shadow-[0_-2px_8px_rgba(11,28,48,0.1)] h-16 pb-safe flex justify-around items-center">
+<!-- Wallet (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors w-full h-full" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Wallet</span>
+</a>
+<!-- Transfer (Active) -->
+<a class="flex flex-col items-center justify-center text-primary font-bold hover:bg-surface-container-low transition-colors w-full h-full" href="#">
+<span class="material-symbols-outlined fill mb-xs" data-icon="swap_horiz">swap_horiz</span>
+<span class="font-label-md text-label-md">Transfer</span>
+</a>
+<!-- History (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors w-full h-full" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="history">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<!-- Account (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors w-full h-full" href="#">
+<span class="material-symbols-outlined mb-xs" data-icon="person">person</span>
+<span class="font-label-md text-label-md">Account</span>
+</a>
+</nav>
+</body></html>

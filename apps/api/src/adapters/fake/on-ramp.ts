@@ -3,6 +3,7 @@ import type {
   OnRampPort,
   OnRampQuote,
   PaymentMethod,
+  StartDepositInput,
 } from "@mega-wallet/core";
 
 export class FakeOnRampAdapter implements OnRampPort {
@@ -29,27 +30,22 @@ export class FakeOnRampAdapter implements OnRampPort {
     country: string;
     userId?: string;
   }): Promise<OnRampQuote[]> {
-    const usdcOut = Math.round(input.amountMinor * 1.05);
+    const usdcOut = Math.round(input.amountMinor * 0.97);
+    const feeMinor = Math.max(0, input.amountMinor - usdcOut);
     return [
       {
-        provider: "fake-moonpay",
+        provider: "demo-ramp",
         paymentMethod: input.paymentMethod,
         sourceCurrency: input.sourceCurrency,
         sourceAmountMinor: input.amountMinor,
         usdcOutMinor: usdcOut,
+        feeMinor,
         labels: ["Recommended"],
       },
     ];
   }
 
-  async startDeposit(input: {
-    quoteId: string;
-    userId: string;
-    amountUsdCents: number;
-    clientInvoiceId: string;
-    paymentMode?: "crypto" | "crypto_or_fiat" | "fiat";
-    fiatCurrency?: string;
-  }): Promise<DepositSession> {
+  async startDeposit(input: StartDepositInput): Promise<DepositSession> {
     const externalId = `fake-inv-${input.clientInvoiceId}`;
     const session: DepositSession = {
       externalId,

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Transfer - Deposit Funds</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#0b1c30",
+                        "on-surface-variant": "#44474e",
+                        "surface-dim": "#cbdbf5",
+                        "tertiary": "#070b0d",
+                        "tertiary-fixed": "#e0e3e5",
+                        "surface-container-low": "#eff4ff",
+                        "surface": "#f8f9ff",
+                        "secondary-fixed": "#8df7c1",
+                        "inverse-surface": "#213145",
+                        "inverse-on-surface": "#eaf1ff",
+                        "background": "#f8f9ff",
+                        "on-tertiary-container": "#85898b",
+                        "surface-tint": "#465f88",
+                        "primary": "#000a1e",
+                        "outline-variant": "#c4c6cf",
+                        "surface-variant": "#d3e4fe",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#c4c7c9",
+                        "tertiary-container": "#1e2224",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#71dba6",
+                        "on-primary-fixed": "#001b3d",
+                        "on-primary": "#ffffff",
+                        "outline": "#74777f",
+                        "on-secondary-fixed-variant": "#005235",
+                        "on-tertiary-fixed-variant": "#434749",
+                        "secondary-container": "#8af5be",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#708ab5",
+                        "on-secondary-fixed": "#002113",
+                        "inverse-primary": "#aec7f6",
+                        "secondary": "#006c47",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#0b1c30",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d6e3ff",
+                        "on-secondary-container": "#00714b",
+                        "primary-fixed-dim": "#aec7f6",
+                        "on-tertiary-fixed": "#181c1e",
+                        "primary-container": "#002147",
+                        "surface-container": "#e5eeff",
+                        "on-primary-fixed-variant": "#2d476f",
+                        "surface-bright": "#f8f9ff",
+                        "surface-container-high": "#dce9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "container-margin": "20px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "display-md": ["Inter"],
+                        "numeric-xl": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "display-md-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "numeric-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "display-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col md:hidden">
+<!-- TopAppBar -->
+<header class="bg-surface w-full top-0 sticky flex items-center justify-between px-container-margin h-12 z-50">
+<button aria-label="Go back" class="flex items-center justify-center p-2 -ml-2 text-primary hover:opacity-80 transition-opacity duration-200 active:scale-95 rounded-full">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-display-md-mobile text-display-md-mobile font-bold text-primary flex-1 text-center pr-10">Deposit</h1>
+</header>
+<main class="flex-1 flex flex-col px-container-margin pt-lg pb-xl gap-lg">
+<!-- 3-Step Progress Stepper -->
+<div class="flex items-center justify-between w-full max-w-sm mx-auto mb-md">
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-on-secondary z-10">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<div class="flex-1 h-[2px] bg-secondary -mx-2 z-0 relative top-[-12px]"></div>
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary border-2 border-primary z-10">
+<span class="font-label-md text-label-md">2</span>
+</div>
+</div>
+<div class="flex-1 h-[2px] bg-outline-variant -mx-2 z-0 relative top-[-12px]"></div>
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-surface border-2 border-outline-variant flex items-center justify-center text-outline z-10">
+<span class="font-label-md text-label-md">3</span>
+</div>
+</div>
+</div>
+<!-- Total Amount Card -->
+<section class="bg-primary rounded-xl p-md shadow-lg flex flex-col items-center justify-center gap-xs relative overflow-hidden">
+<!-- Subtle decorative element -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none"></div>
+<p class="font-body-md text-body-md text-on-primary/80">Total to deposit</p>
+<h2 class="font-numeric-xl text-numeric-xl text-on-primary">$1,250.00</h2>
+<div class="bg-white/10 rounded-full px-sm py-xs mt-sm flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px] text-secondary-fixed">receipt_long</span>
+<p class="font-label-md text-label-md text-on-primary">Ref: TXN-8924-B</p>
+</div>
+</section>
+<!-- Deposit Instructions (Bank Transfer Example) -->
+<section class="flex flex-col gap-sm">
+<h3 class="font-display-md-mobile text-display-md-mobile text-primary mb-xs">Bank Details</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Please transfer exactly the total amount to the following bank account. Include the reference number in the transfer description.</p>
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_2px_8px_rgba(11,28,48,0.1)] overflow-hidden">
+<div class="flex flex-col divide-y divide-outline-variant/30">
+<!-- Bank Name -->
+<div class="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors group cursor-pointer">
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-outline">BANK NAME</span>
+<span class="font-body-lg text-body-lg text-primary font-semibold">Global Trust Bank</span>
+</div>
+<button aria-label="Copy bank name" class="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+<!-- Account Name -->
+<div class="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors group cursor-pointer">
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-outline">ACCOUNT NAME</span>
+<span class="font-body-lg text-body-lg text-primary font-semibold">Wallet App Inc.</span>
+</div>
+<button aria-label="Copy account name" class="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+<!-- IBAN/Account Number -->
+<div class="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors group cursor-pointer">
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-outline">ACCOUNT NUMBER</span>
+<span class="font-body-lg text-body-lg text-primary font-semibold">US12 3456 7890 1234 5678</span>
+</div>
+<button aria-label="Copy account number" class="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+<!-- Routing Code -->
+<div class="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors group cursor-pointer">
+<div class="flex flex-col gap-xs">
+<span class="font-label-md text-label-md text-outline">ROUTING / SORT CODE</span>
+<span class="font-body-lg text-body-lg text-primary font-semibold">987654321</span>
+</div>
+<button aria-label="Copy routing code" class="text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+<p class="font-label-md text-label-md text-outline text-center mt-sm flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                Transfers may take up to 1-2 business days to process.
+            </p>
+</section>
+<!-- Action Button -->
+<div class="mt-auto pt-lg">
+<button class="w-full bg-primary text-on-primary rounded-lg h-[48px] font-body-lg text-body-lg font-semibold flex items-center justify-center gap-sm active:scale-95 transition-transform duration-150 shadow-md">
+                I have made the transfer
+                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</main>
+<script>
+        // Simple copy to clipboard functionality for the items
+        document.querySelectorAll('.group').forEach(item => {
+            item.addEventListener('click', function() {
+                const textToCopy = this.querySelector('.font-body-lg').innerText;
+                const icon = this.querySelector('.material-symbols-outlined');
+                
+                // Visual feedback
+                const originalIcon = icon.innerText;
+                icon.innerText = 'check';
+                icon.style.opacity = '1';
+                icon.classList.add('text-secondary');
+                icon.classList.remove('text-primary');
+                
+                setTimeout(() => {
+                    icon.innerText = originalIcon;
+                    icon.style.opacity = '';
+                    icon.classList.remove('text-secondary');
+                    icon.classList.add('text-primary');
+                }, 2000);
+
+                // In a real app, you'd use navigator.clipboard.writeText(textToCopy)
+                console.log('Copied:', textToCopy);
+            });
+        });
+    </script>
+</body></html>

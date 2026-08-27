@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeOnRampAdapter } from "../src/adapters/fake/on-ramp.js";
 import { JsonlEventLog } from "../src/adapters/event-log/jsonl.js";
-import { loadConfig } from "../src/config.js";
+import { isAllowedOrigin, loadConfig } from "../src/config.js";
 import { createDb } from "../src/db/client.js";
 import { initSchema } from "../src/db/init-schema.js";
 import { LedgerService } from "../src/services/ledger.js";
@@ -35,6 +35,35 @@ describe("api ledger idempotency", () => {
     const balance = await ledger.getBalance("u1");
     expect(balance.availableUsdCents).toBe(1000);
   });
+});
+
+describe("allowed origins", () => {
+  it("accepts localhost forwarded ports", () => {
+    expect(isAllowedOrigin("http://localhost:61988", "http://localhost:5173")).toBe(true);
+    expect(isAllowedOrigin("http://127.0.0.1:5173", "http://localhost:5173")).toBe(true);
+    expect(isAllowedOrigin("http://localhost:5173", "http://localhost:5173")).toBe(true);
+    expect(isAllowedOrigin("https://evil.example", "http://localhost:5173")).toBe(false);
+  });
+});
+
+describe("passwordless auth options", () => {
+  it(
+    "enables email OTP and passkey, disables password",
+    async () => {
+      const { buildAuthOptions } = await import("../src/auth.js");
+      const config = {
+        ...loadConfig(),
+        authEmailMode: "console" as const,
+        databaseUrl: join(tmpdir(), `mw-auth-${randomUUID()}.db`),
+      };
+      const options = buildAuthOptions(config);
+      expect(options.emailAndPassword?.enabled).toBe(false);
+      const pluginIds = (options.plugins ?? []).map((p) => (p as { id?: string }).id);
+      expect(pluginIds).toContain("email-otp");
+      expect(pluginIds).toContain("passkey");
+    },
+    15_000,
+  );
 });
 
 describe("fake on-ramp", () => {

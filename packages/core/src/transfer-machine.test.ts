@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   canTransition,
   deriveTransferState,
+  inferTransferKind,
+  isActiveTransferPhase,
   stepLabels,
   transitionTransfer,
+  walletDepositInvoiceTitle,
 } from "../src/transfer-machine.js";
 
 describe("transfer-machine", () => {
   it("allows valid transitions", () => {
     expect(canTransition("quote_issued", "depositing")).toBe(true);
     expect(canTransition("deposited", "withdraw_initiated")).toBe(false);
+    expect(canTransition("not_a_phase" as never, "depositing")).toBe(false);
   });
 
   it("transitions", () => {
@@ -34,8 +38,29 @@ describe("transfer-machine", () => {
     expect(stepLabels("deposited").recipient).toBe("in_progress");
   });
 
-  it("rejects unknown transition source", () => {
-    expect(canTransition("withdraw_executed", "depositing")).toBe(false);
-    expect(canTransition("invalid" as "quote_issued", "depositing")).toBe(false);
+  it("allows wallet deposit depositing to completed", () => {
+    expect(canTransition("depositing", "completed")).toBe(true);
+    expect(transitionTransfer("depositing", "completed")).toBe("completed");
+    expect(canTransition("deposited", "completed")).toBe(true);
+  });
+
+  it("marks active transfer phases", () => {
+    expect(isActiveTransferPhase("depositing")).toBe(true);
+    expect(isActiveTransferPhase("need_attention")).toBe(true);
+    expect(isActiveTransferPhase("completed")).toBe(false);
+    expect(isActiveTransferPhase("quote_issued")).toBe(false);
+  });
+
+  it("infers kind and invoice title", () => {
+    expect(inferTransferKind("wallet")).toBe("wallet_deposit");
+    expect(inferTransferKind("wallet-withdraw")).toBe("wallet_withdraw");
+    expect(inferTransferKind("abc")).toBe("remittance");
+    expect(inferTransferKind(null, "wallet_deposit")).toBe("wallet_deposit");
+    expect(inferTransferKind("wallet", "remittance")).toBe("remittance");
+    expect(inferTransferKind("x", "wallet_withdraw")).toBe("wallet_withdraw");
+    expect(walletDepositInvoiceTitle("en")).toMatch(/Deposit USD/);
+    expect(walletDepositInvoiceTitle("fa")).toBe("واریز دلار به کیف پول");
+    expect(walletDepositInvoiceTitle("ar")).toBe("إيداع دولار في المحفظة");
+    expect(walletDepositInvoiceTitle()).toMatch(/Deposit USD/);
   });
 });

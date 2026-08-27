@@ -1,6 +1,14 @@
 import { sql } from "drizzle-orm";
 import type { AppDb } from "./client.js";
 
+function tryAlter(db: AppDb, statement: string) {
+  try {
+    db.run(sql.raw(statement));
+  } catch {
+    // Column already exists on legacy DBs
+  }
+}
+
 export function initSchema(db: AppDb) {
   db.run(sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -41,6 +49,7 @@ export function initSchema(db: AppDb) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       quote_id TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'remittance',
       phase TEXT NOT NULL,
       deposit_external_id TEXT,
       deposit_pay_url TEXT,
@@ -50,11 +59,35 @@ export function initSchema(db: AppDb) {
       withdraw_status TEXT,
       operator_comment TEXT,
       evidence_path TEXT,
+      source_currency TEXT,
+      payment_mode TEXT,
       usd_amount_cents INTEGER NOT NULL,
       dest_amount_minor INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
+  `);
+  tryAlter(db, "ALTER TABLE transfers ADD COLUMN kind TEXT NOT NULL DEFAULT 'remittance'");
+  tryAlter(db, "ALTER TABLE transfers ADD COLUMN source_currency TEXT");
+  tryAlter(db, "ALTER TABLE transfers ADD COLUMN payment_mode TEXT");
+  db.run(
+    sql`UPDATE transfers SET kind = 'wallet_deposit' WHERE quote_id = 'wallet' AND kind = 'remittance'`,
+  );
+  db.run(
+    sql`UPDATE transfers SET kind = 'wallet_withdraw' WHERE quote_id = 'wallet-withdraw' AND kind = 'remittance'`,
+  );
+  db.run(sql`
+    CREATE TABLE IF NOT EXISTS withdraw_contacts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sheba TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `);
+  db.run(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS withdraw_contacts_user_sheba
+    ON withdraw_contacts (user_id, sheba)
   `);
   db.run(sql`
     CREATE TABLE IF NOT EXISTS ledger_events (
@@ -65,68 +98,6 @@ export function initSchema(db: AppDb) {
       transfer_id TEXT,
       metadata TEXT,
       created_at INTEGER NOT NULL
-    )
-  `);
-  db.run(sql`
-    CREATE TABLE IF NOT EXISTS auth_user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )
-  `);
-  db.run(sql`
-    CREATE TABLE IF NOT EXISTS auth_session (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )
-  `);
-  db.run(sql`
-    CREATE TABLE IF NOT EXISTS auth_account (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      account_id TEXT NOT NULL,
-      provider_id TEXT NOT NULL,
-      access_token TEXT,
-      refresh_token TEXT,
-      access_token_expires_at INTEGER,
-      refresh_token_expires_at INTEGER,
-      scope TEXT,
-      id_token TEXT,
-      password TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )
-  `);
-  db.run(sql`
-    CREATE TABLE IF NOT EXISTS auth_verification (
-      id TEXT PRIMARY KEY,
-      identifier TEXT NOT NULL,
-      value TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )
-  `);
-  db.run(sql`
-    CREATE TABLE IF NOT EXISTS auth_passkey (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      public_key TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      credential_id TEXT NOT NULL,
-      counter INTEGER NOT NULL,
-      device_type TEXT,
-      backed_up INTEGER,
-      transports TEXT,
-      created_at INTEGER
     )
   `);
 }
