@@ -44,12 +44,16 @@ describe("remittance recipient-first flow", () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const fakeOnRamp = new FakeOnRampAdapter();
     const fakeOffRamp = new FakeOffRampAdapter();
+    const fx = new AggregatingFxOracle([
+      new StaticFxProvider("nobitex", 500000),
+      new StaticFxProvider("wallex", 501000),
+      new StaticFxProvider("bitpin", 499000),
+    ]);
     const offRamps = new OffRampRegistry(
-      new ShebaOffRampAdapter(),
+      new ShebaOffRampAdapter(fx),
       fakeOffRamp as unknown as import("../adapters/offramp/onramper-sell.js").OnramperSellOffRampAdapter,
       fakeOffRamp,
     );
-    const fx = new AggregatingFxOracle([new StaticFxProvider("nobitex", 500000)]);
     const ledger = new LedgerService(db, new JsonlEventLog(logPath), config);
     const quotes = new QuoteService(db, fakeOnRamp, fx, config);
     const transfers = new TransferService(db, fakeOnRamp, offRamps, ledger, fx, fakeOnRamp, config);

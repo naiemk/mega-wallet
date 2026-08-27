@@ -102,18 +102,38 @@ export function createApp(ctx: AppContext) {
       }
     }
 
-    const quote = await ctx.quotes.createQuote({
-      sourceCurrency,
-      destCurrency,
-      sourceAmountMinor: Math.round(amount * 100),
-      paymentMethod,
-      country,
-      userId: session?.user?.id,
-      lastSuccessfulPaymentMethod: userPrefs.lastSuccessful,
-      lastAttemptedPaymentMethod: userPrefs.lastAttempted,
-    });
+    try {
+      const quote = await ctx.quotes.createQuote({
+        sourceCurrency,
+        destCurrency,
+        sourceAmountMinor: Math.round(amount * 100),
+        paymentMethod,
+        country,
+        userId: session?.user?.id,
+        lastSuccessfulPaymentMethod: userPrefs.lastSuccessful,
+        lastAttemptedPaymentMethod: userPrefs.lastAttempted,
+      });
+      return c.json(quote);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Quote failed";
+      if (/Rate unavailable/i.test(message)) return c.json({ error: message }, 503);
+      return c.json({ error: message }, 400);
+    }
+  });
 
-    return c.json(quote);
+  app.get("/api/rates", async (c) => {
+    const quote = await ctx.fx.getQuote("USDT", "IRR");
+    if (!quote) return c.json({ error: "Rate unavailable" }, 503);
+    return c.json({
+      pair: "USDT/IRR",
+      midRate: quote.midRate,
+      customerRate: quote.customerRate,
+      commissionBps: quote.commissionBps,
+      source: quote.source,
+      sources: quote.sources,
+      overrideExpiresAt: quote.overrideExpiresAt?.toISOString() ?? null,
+      fetchedAt: quote.fetchedAt.toISOString(),
+    });
   });
 
   app.post("/api/transfers", async (c) => {
@@ -183,6 +203,16 @@ export function createApp(ctx: AppContext) {
       reservedUsd: (balance.reservedUsdCents / 100).toFixed(2),
       availableUsdCents: balance.availableUsdCents,
       reservedUsdCents: balance.reservedUsdCents,
+    });
+  });
+
+  app.get("/api/fx/usdt-irr", async (c) => {
+    const rate = await ctx.fx.getRate("USDT", "IRR");
+    if (!rate) return c.json({ rate: null });
+    return c.json({
+      rate: rate.rate,
+      source: rate.source,
+      fetchedAt: rate.fetchedAt,
     });
   });
 
@@ -349,30 +379,41 @@ export function createApp(ctx: AppContext) {
     const body = await c.req.json<{
       amountUsdCents: number;
       name?: string;
+      kind?: "sheba" | "card";
       sheba?: string;
+      cardNumber?: string;
+      bankId?: string;
       contactId?: string;
       saveContact?: boolean;
     }>();
     try {
       let name = body.name ?? "";
+      let kind = body.kind ?? "sheba";
       let sheba = body.sheba ?? "";
+      let cardNumber = body.cardNumber ?? "";
+      let bankId = body.bankId ?? null;
       if (body.contactId) {
         const contacts = await ctx.transfers.listContacts(session.user.id);
         const contact = contacts.find((x) => x.id === body.contactId);
         if (!contact) return c.json({ error: "Contact not found" }, 404);
         name = contact.name;
-        sheba = contact.sheba;
+        kind = (contact.kind as "sheba" | "card") || (contact.cardNumber ? "card" : "sheba");
+        sheba = contact.sheba ?? "";
+        cardNumber = contact.cardNumber ?? "";
+        bankId = contact.bankId ?? null;
       }
-      const result = await ctx.transfers.startWalletWithdrawal(
-        session.user.id,
-        body.amountUsdCents,
+      const result = await ctx.transfers.startWalletWithdrawal(session.user.id, body.amountUsdCents, {
         name,
+        kind,
         sheba,
-        { saveContact: body.saveContact },
-      );
+        cardNumber,
+        bankId,
+        saveContact: body.saveContact,
+      });
       return c.json(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Withdraw failed";
+      if (/Rate unavailable/i.test(message)) return c.json({ error: message }, 503);
       const status = /Insufficient/i.test(message) ? 409 : 400;
       return c.json({ error: message }, status);
     }
@@ -411,9 +452,15 @@ export function createApp(ctx: AppContext) {
   app.post("/api/contacts", async (c) => {
     const session = await getSession(c, ctx);
     if (!session) return c.json({ error: "Unauthorized" }, 401);
-    const body = await c.req.json<{ name: string; sheba: string }>();
+    const body = await c.req.json<{
+      name: string;
+      kind?: "sheba" | "card";
+      sheba?: string;
+      cardNumber?: string;
+      bankId?: string;
+    }>();
     try {
-      const contact = await ctx.transfers.saveContact(session.user.id, body.name, body.sheba);
+      const contact = await ctx.transfers.saveContact(session.user.id, body);
       return c.json({ contact });
     } catch (e) {
       return c.json({ error: e instanceof Error ? e.message : "Invalid contact" }, 400);
@@ -506,6 +553,90 @@ export function createApp(ctx: AppContext) {
     const body = await c.req.parseBody();
     const comment = typeof body.comment === "string" ? body.comment : undefined;
     await ctx.transfers.operatorMarkReceived(c.req.param("id"), comment);
+    return c.json({ ok: true });
+  });
+
+  app.get("/api/operator/fx-rate", async (c) => {
+    const denied = await requireOperator(c, ctx);
+    if (denied) return denied;
+    const { DbFxOverrideStore } = await import("./adapters/fx/override-store.js");
+    const store = new DbFxOverrideStore(ctx.db);
+    const override = await store.get("USDT/IRR");
+    const liveOverride =
+      override && override.expiresAt.getTime() > Date.now()
+        ? {
+            midRate: override.midRate,
+            expiresAt: override.expiresAt.toISOString(),
+            setByUserId: override.setByUserId,
+            createdAt: override.createdAt.toISOString(),
+          }
+        : null;
+    const quote = await ctx.fx.getQuote("USDT", "IRR");
+    return c.json({
+      quote: quote
+        ? {
+            pair: "USDT/IRR",
+            midRate: quote.midRate,
+            customerRate: quote.customerRate,
+            commissionBps: quote.commissionBps,
+            source: quote.source,
+            sources: quote.sources,
+            overrideExpiresAt: quote.overrideExpiresAt?.toISOString() ?? null,
+            fetchedAt: quote.fetchedAt.toISOString(),
+          }
+        : null,
+      override: liveOverride,
+      rateUnavailable: !quote,
+    });
+  });
+
+  app.put("/api/operator/fx-rate", async (c) => {
+    const denied = await requireOperator(c, ctx);
+    if (denied) return denied;
+    const session = await getSession(c, ctx);
+    if (!session) return c.json({ error: "Unauthorized" }, 401);
+    const body = await c.req.json<{ midRate?: number; ttlHours?: number }>();
+    const midRate = Number(body.midRate);
+    const ttlHours = Number(body.ttlHours);
+    if (!Number.isFinite(midRate) || midRate < ctx.config.fxMinRate || midRate > ctx.config.fxMaxRate) {
+      return c.json(
+        { error: `midRate must be between ${ctx.config.fxMinRate} and ${ctx.config.fxMaxRate}` },
+        400,
+      );
+    }
+    if (!Number.isFinite(ttlHours) || ttlHours < 1 || ttlHours > 72) {
+      return c.json({ error: "ttlHours must be between 1 and 72" }, 400);
+    }
+    const { DbFxOverrideStore } = await import("./adapters/fx/override-store.js");
+    const store = new DbFxOverrideStore(ctx.db);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
+    await store.set({
+      pair: "USDT/IRR",
+      midRate: Math.round(midRate),
+      expiresAt,
+      setByUserId: session.user.id,
+      createdAt: now,
+    });
+    ctx.fx.invalidateCache?.();
+    return c.json({
+      ok: true,
+      override: {
+        midRate: Math.round(midRate),
+        expiresAt: expiresAt.toISOString(),
+        setByUserId: session.user.id,
+        ttlHours,
+      },
+    });
+  });
+
+  app.delete("/api/operator/fx-rate", async (c) => {
+    const denied = await requireOperator(c, ctx);
+    if (denied) return denied;
+    const { DbFxOverrideStore } = await import("./adapters/fx/override-store.js");
+    const store = new DbFxOverrideStore(ctx.db);
+    await store.clear("USDT/IRR");
+    ctx.fx.invalidateCache?.();
     return c.json({ ok: true });
   });
 

@@ -377,6 +377,12 @@ export function AccountPage() {
               {t("security")}
             </h3>
             <SurfaceCard>
+              <SettingsRow
+                icon="account_balance"
+                title={t("bankAccounts")}
+                subtitle={t("shebaTab") + " / " + t("cardTab")}
+                onClick={() => navigate("/account/banks")}
+              />
               {supportsPasskey && (
                 <SettingsRow
                   icon="fingerprint"

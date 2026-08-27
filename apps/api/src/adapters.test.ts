@@ -155,14 +155,30 @@ describe("adapters", () => {
     expect(status.status).toBe("paid");
   });
 
-  it("sheba off-ramp quotes IRR", async () => {
-    const adapter = new ShebaOffRampAdapter();
+  it("sheba off-ramp quotes IRR via FX oracle", async () => {
+    const fx = new AggregatingFxOracle([
+      new StaticFxProvider("a", 500000),
+      new StaticFxProvider("b", 501000),
+    ]);
+    const adapter = new ShebaOffRampAdapter(fx);
     const quotes = await adapter.quote({
       destCurrency: "IRR",
       usdcInMinor: 1000,
       country: "IR",
     });
     expect(quotes[0]?.provider).toBe("sheba-irr");
+    expect(quotes[0]?.destOutMinor).toBeGreaterThan(0);
+  });
+
+  it("sheba off-ramp returns empty when FX unavailable", async () => {
+    const fx = new AggregatingFxOracle([new StaticFxProvider("a", null)]);
+    const adapter = new ShebaOffRampAdapter(fx);
+    const quotes = await adapter.quote({
+      destCurrency: "IRR",
+      usdcInMinor: 1000,
+      country: "IR",
+    });
+    expect(quotes).toEqual([]);
   });
 
   it("off-ramp registry resolves by currency", () => {
@@ -173,13 +189,131 @@ describe("adapters", () => {
     expect(registry.resolve("IRR")).toBeDefined();
   });
 
-  it("aggregates FX rates", async () => {
-    const fx = new AggregatingFxOracle([
-      new StaticFxProvider("a", 500000),
-      new StaticFxProvider("b", 501000),
-    ]);
+  it("aggregates FX rates with commission on customer rate", async () => {
+    const fx = new AggregatingFxOracle(
+      [new StaticFxProvider("a", 500000), new StaticFxProvider("b", 501000)],
+      { commissionBps: 100 },
+    );
     const rate = await fx.getRate("USDT", "IRR");
-    expect(rate?.rate).toBeGreaterThan(0);
+    expect(rate?.rate).toBe(Math.floor(500500 * 0.99));
+    const quote = await fx.getQuote("USDT", "IRR");
+    expect(quote?.midRate).toBe(500500);
+    expect(quote?.customerRate).toBe(rate?.rate);
+    expect(quote?.source).toBe("aggregated");
+  });
+
+  it("rejects FX outlier beyond deviation band", async () => {
+    const fx = new AggregatingFxOracle(
+      [
+        new StaticFxProvider("a", 1_050_000),
+        new StaticFxProvider("b", 1_051_000),
+        new StaticFxProvider("c", 1_200_000),
+      ],
+      { commissionBps: 0, maxDeviationBps: 200 },
+    );
+    const quote = await fx.getQuote("USDT", "IRR");
+    expect(quote?.midRate).toBe(1_050_500);
+    expect(quote?.sources.find((s) => s.name === "c")?.accepted).toBe(false);
+  });
+
+  it("returns null when FX sources disagree past quorum", async () => {
+    const fx = new AggregatingFxOracle(
+      [new StaticFxProvider("a", 1_000_000), new StaticFxProvider("b", 1_100_000)],
+      { maxDeviationBps: 200, minSources: 2 },
+    );
+    expect(await fx.getQuote("USDT", "IRR")).toBeNull();
+  });
+
+  it("caches successful FX quote within TTL", async () => {
+    let fetches = 0;
+    const provider = {
+      name: "counting",
+      async fetchUsdtIrr() {
+        fetches += 1;
+        return 500_000;
+      },
+    };
+    const fx = new AggregatingFxOracle([provider, { ...provider, name: "b" }], {
+      cacheTtlMs: 60_000,
+      commissionBps: 0,
+    });
+    await fx.getQuote("USDT", "IRR");
+    await fx.getQuote("USDT", "IRR");
+    expect(fetches).toBe(2); // one per provider, once
+  });
+
+  it("negative cache does not serve a rate after failed vote", async () => {
+    const fx = new AggregatingFxOracle(
+      [new StaticFxProvider("a", null), new StaticFxProvider("b", null)],
+      { negativeCacheTtlMs: 60_000 },
+    );
+    expect(await fx.getQuote("USDT", "IRR")).toBeNull();
+    expect(await fx.getQuote("USDT", "IRR")).toBeNull();
+  });
+
+  it("operator override wins over feeds until expiry", async () => {
+    const store = {
+      row: null as null | {
+        pair: string;
+        midRate: number;
+        expiresAt: Date;
+        setByUserId: string;
+        createdAt: Date;
+      },
+      async get(pair: string) {
+        return this.row?.pair === pair ? this.row : null;
+      },
+      async set(record: NonNullable<typeof this.row>) {
+        this.row = record;
+      },
+      async clear() {
+        this.row = null;
+      },
+    };
+    const fx = new AggregatingFxOracle(
+      [new StaticFxProvider("a", 500000), new StaticFxProvider("b", 501000)],
+      { commissionBps: 100, overrideStore: store },
+    );
+    await store.set({
+      pair: "USDT/IRR",
+      midRate: 2_000_000,
+      expiresAt: new Date(Date.now() + 3600_000),
+      setByUserId: "op1",
+      createdAt: new Date(),
+    });
+    const quote = await fx.getQuote("USDT", "IRR");
+    expect(quote?.source).toBe("operator");
+    expect(quote?.midRate).toBe(2_000_000);
+    expect(quote?.customerRate).toBe(Math.floor(2_000_000 * 0.99));
+
+    await store.clear();
+    fx.invalidateCache();
+    const live = await fx.getQuote("USDT", "IRR");
+    expect(live?.source).toBe("aggregated");
+    expect(live?.midRate).toBe(500500);
+  });
+
+  it("expired operator override is ignored", async () => {
+    const store = {
+      async get() {
+        return {
+          pair: "USDT/IRR",
+          midRate: 2_000_000,
+          expiresAt: new Date(Date.now() - 1000),
+          setByUserId: "op1",
+          createdAt: new Date(),
+        };
+      },
+      async set() {},
+      async clear() {},
+    };
+    const fx = new AggregatingFxOracle(
+      [new StaticFxProvider("a", 500000), new StaticFxProvider("b", 501000)],
+      { commissionBps: 0, overrideStore: store },
+    );
+    const quote = await fx.getQuote("USDT", "IRR");
+    expect(quote?.source).toBe("aggregated");
+    expect(quote?.midRate).toBe(500500);
   });
 
   it("dual event log writes jsonl", async () => {

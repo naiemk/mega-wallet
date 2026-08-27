@@ -14,6 +14,7 @@ import { WalletDepositPage } from "./pages/WalletDepositPage";
 import { WalletDepositStatusPage } from "./pages/WalletDepositStatusPage";
 import { WithdrawPage } from "./pages/WithdrawPage";
 import { WithdrawStatusPage } from "./pages/WithdrawStatusPage";
+import { BankAccountsPage } from "./pages/BankAccountsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HistoryDetailPage } from "./pages/HistoryDetailPage";
 import { AccountPage } from "./pages/AccountPage";
@@ -39,6 +40,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/deposit/:id" element={<WalletDepositStatusPage />} />
             <Route path="/withdraw" element={<WithdrawPage />} />
             <Route path="/withdraw/:id" element={<WithdrawStatusPage />} />
+            <Route path="/account/banks" element={<BankAccountsPage />} />
             <Route path="/transfer" element={<TransferQuotePage />} />
             <Route path="/transfer/recipient" element={<RecipientPage />} />
             <Route path="/transfer/deposit" element={<DepositPage />} />

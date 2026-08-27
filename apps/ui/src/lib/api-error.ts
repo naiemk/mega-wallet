@@ -23,6 +23,7 @@ const ERROR_KEY_BY_MESSAGE: Record<string, string> = {
   "Withdraw failed": "errWithdrawFailed",
   "Transfer failed": "errTransferFailed",
   "No quotes available": "errNoQuotes",
+  "Rate unavailable": "errRateUnavailable",
   "Invalid contact": "errInvalidContact",
   "Operator email must be verified": "errOperatorUnverified",
   "Operator access required. Sign in with an operator account.": "operatorDenied",

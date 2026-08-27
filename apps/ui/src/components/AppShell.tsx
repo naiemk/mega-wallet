@@ -18,6 +18,7 @@ function titleForPath(pathname: string, t: (k: string) => string): string {
   if (pathname.startsWith("/history/")) return t("transaction");
   if (pathname.startsWith("/history")) return t("history");
   if (pathname.startsWith("/account/passkeys")) return t("passkeys");
+  if (pathname.startsWith("/account/banks")) return t("bankAccounts");
   if (pathname.startsWith("/account")) return t("account");
   if (pathname.startsWith("/operator")) return t("operator");
   if (pathname.startsWith("/invite")) return t("invite");

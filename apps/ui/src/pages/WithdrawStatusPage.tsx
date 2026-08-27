@@ -13,6 +13,7 @@ interface WithdrawTransfer {
   usdAmountCents: number;
   recipientName?: string | null;
   recipientSheba?: string | null;
+  recipientCard?: string | null;
   withdrawStatus?: string | null;
 }
 
@@ -90,7 +91,12 @@ export function WithdrawStatusPage() {
           <div className="border-t border-surface-container pt-md space-y-sm">
             <Row label={t("amount")} value={`$${(transfer.usdAmountCents / 100).toFixed(2)}`} />
             <Row label={t("recipientName")} value={transfer.recipientName ?? "—"} />
-            <Row label={t("shebaIban")} value={transfer.recipientSheba ?? "—"} mono />
+            {transfer.recipientSheba && (
+              <Row label={t("shebaIban")} value={transfer.recipientSheba} mono />
+            )}
+            {transfer.recipientCard && (
+              <Row label={t("cardNumber")} value={transfer.recipientCard} mono />
+            )}
             <Row label={t("status")} value={phase} />
           </div>
         )}

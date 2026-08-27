@@ -82,7 +82,8 @@ export async function sendOperatorEmail(
     usdAmountCents: number;
     destAmountMinor: number;
     recipientName: string;
-    recipientSheba: string;
+    recipientSheba?: string;
+    recipientCard?: string;
   },
 ): Promise<void> {
   const to = config.operatorSettlementEmail.trim();
@@ -90,6 +91,9 @@ export async function sendOperatorEmail(
 
   const usd = (data.usdAmountCents / 100).toFixed(2);
   const subject = `Recipient settlement required — ${data.transferId}`;
+  const destLine = data.recipientCard
+    ? `Card: ${data.recipientCard}`
+    : `Sheba: ${data.recipientSheba ?? ""}`;
   const text = [
     "A remittance deposit settled and needs recipient payout.",
     "",
@@ -98,7 +102,7 @@ export async function sendOperatorEmail(
     `USD credited: $${usd}`,
     `Dest amount (minor): ${data.destAmountMinor}`,
     `Recipient: ${data.recipientName}`,
-    `Sheba: ${data.recipientSheba}`,
+    destLine,
     "",
     "Mark the trade settled in the operator dashboard when payout is complete.",
   ].join("\n");
