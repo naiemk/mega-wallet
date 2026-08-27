@@ -184,7 +184,22 @@ export class TrustlessCommerceAdapter implements OnRampPort {
     }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`TC quote failed: ${res.status}${text ? ` ${text.slice(0, 180)}` : ""}`);
+      let detail = text.slice(0, 180);
+      try {
+        const parsed = JSON.parse(text) as {
+          error?: string;
+          minAmount?: number;
+          maxAmount?: number;
+          fiat?: string;
+        };
+        if (parsed.error) detail = parsed.error;
+        else if (parsed.minAmount != null && parsed.maxAmount != null) {
+          detail = `Amount should be in between ${parsed.fiat ?? input.sourceCurrency} ${parsed.minAmount} and ${parsed.fiat ?? input.sourceCurrency} ${parsed.maxAmount}`;
+        }
+      } catch {
+        /* keep truncated text */
+      }
+      throw new Error(`TC quote failed: ${res.status}${detail ? ` ${detail}` : ""}`);
     }
     const data = (await res.json()) as TcQuoteResponse;
     const rows =
@@ -250,7 +265,7 @@ export class TrustlessCommerceAdapter implements OnRampPort {
     if (input.callbackUrl || this.config.callbackBaseUrl) {
       body.callback =
         input.callbackUrl ??
-        `${this.config.callbackBaseUrl!.replace(/\/$/, "")}/api/webhooks/trustless-commerce`;
+        `${this.config.callbackBaseUrl!.replace(/\/$/, "")}/payment/return`;
     }
 
     if (paymentMode === "crypto") {

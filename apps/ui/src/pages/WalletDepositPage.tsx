@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
+import { translateApiError } from "../lib/api-error";
 import { useApiErrorHandler } from "../lib/use-api-error";
 import { formatMoney, humanizeId } from "../lib/format";
+import { acceptUsdAmountChange, displayNumeric } from "../lib/numeric-input";
 import { CurrencySelect } from "../components/IconCircle";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -15,6 +17,19 @@ interface QuoteResult {
   provider: string;
   paymentMethods?: Array<{ id: string; name: string }>;
   rankedQuotes?: Array<{ feeMinor?: number }>;
+}
+
+function parseAmountLimit(message: string): { min?: number; max?: number; fiat?: string } | null {
+  const between = message.match(
+    /between\s+([A-Z]{3})\s+([\d.]+)\s+and\s+[A-Z]{3}\s+([\d.]+)/i,
+  );
+  if (between) {
+    return { fiat: between[1]?.toUpperCase(), min: Number(between[2]), max: Number(between[3]) };
+  }
+  if (/onramp_limit|LimitMismatch|minAmount/i.test(message)) {
+    return {};
+  }
+  return null;
 }
 
 export function WalletDepositPage() {
@@ -39,6 +54,7 @@ export function WalletDepositPage() {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) {
       setQuote(null);
+      setError(n === 0 || amount === "" ? "" : t("amountTooLow"));
       return;
     }
     setQuoting(true);
@@ -50,15 +66,32 @@ export function WalletDepositPage() {
       setQuote(q);
       setError("");
       if (!paymentMethod && q.paymentMethod) setPaymentMethod(q.paymentMethod);
-    } catch {
-      // Quote is optional for starting a deposit; show amount as a provisional credit for USD.
+    } catch (e) {
       setQuote(null);
+      const raw = e instanceof ApiError || e instanceof Error ? e.message : String(e);
+      const limit = parseAmountLimit(raw);
+      if (limit) {
+        if (limit.min != null && limit.max != null && limit.fiat) {
+          setError(
+            t("depositAmountOutOfRange", {
+              min: formatMoney(Math.round(limit.min * 100), limit.fiat, i18n.language),
+              max: formatMoney(Math.round(limit.max * 100), limit.fiat, i18n.language),
+            }),
+          );
+        } else {
+          setError(translateApiError(e, t));
+        }
+      } else {
+        // Non-limit quote failures: keep provisional USD estimate path disabled until quote works
+        setError(translateApiError(e, t));
+      }
     } finally {
       setQuoting(false);
     }
   }
 
   async function startDeposit() {
+    if (!quote) return;
     setError("");
     setLoading(true);
     try {
@@ -67,11 +100,11 @@ export function WalletDepositPage() {
         method: "POST",
         body: JSON.stringify({
           amountMinor,
-          amountUsdCents: quote?.usdcOutMinor,
+          amountUsdCents: quote.usdcOutMinor,
           sourceCurrency: currency,
           paymentMode: "fiat",
-          paymentMethod: paymentMethod || quote?.paymentMethod,
-          provider: quote?.provider,
+          paymentMethod: paymentMethod || quote.paymentMethod,
+          provider: quote.provider,
           language: i18n.language,
         }),
       });
@@ -84,9 +117,9 @@ export function WalletDepositPage() {
   }
 
   const sourceMinor = Math.round(Number(amount || 0) * 100);
-  const creditMinor =
-    quote?.usdcOutMinor ?? (currency === "USD" && sourceMinor > 0 ? sourceMinor : null);
-  const estimateProvisional = !quote && creditMinor != null;
+  const creditMinor = quote?.usdcOutMinor ?? null;
+  const canDeposit =
+    !loading && !quoting && !!quote && Number.isFinite(Number(amount)) && Number(amount) > 0;
 
   return (
     <div className="px-container-margin py-lg flex flex-col gap-lg max-w-md mx-auto w-full">
@@ -108,8 +141,11 @@ export function WalletDepositPage() {
             <input
               className="bg-transparent border-none p-0 font-numeric-xl text-numeric-xl text-primary w-2/3 outline-none min-w-0"
               inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={displayNumeric(amount, i18n.language)}
+              onChange={(e) => {
+                const next = acceptUsdAmountChange(e.target.value, amount);
+                if (next !== null) setAmount(next);
+              }}
               aria-label={t("depositAmount")}
             />
             <div className="relative">
@@ -135,17 +171,15 @@ export function WalletDepositPage() {
           <div>
             <p className="font-label-md text-label-md text-on-surface-variant">{t("walletCredits")}</p>
             <p className="font-display-md text-display-md text-primary m-0">
-              {quoting && !creditMinor
+              {quoting && creditMinor == null
                 ? "…"
                 : creditMinor == null
-                  ? "…"
+                  ? "—"
                   : formatMoney(creditMinor, "USD", i18n.language)}
             </p>
-            {(quote?.provider || estimateProvisional) && (
+            {quote?.provider && (
               <p className="font-label-md text-label-md text-outline mt-xs mb-0">
-                {estimateProvisional
-                  ? t("estimateFinalAtCheckout")
-                  : humanizeId(quote!.provider)}
+                {humanizeId(quote.provider)}
                 {sourceMinor > 0 && currency !== "USD"
                   ? ` · ${formatMoney(sourceMinor, currency, i18n.language)}`
                   : null}
@@ -181,13 +215,10 @@ export function WalletDepositPage() {
         ) : null}
       </SurfaceCard>
 
-      {error && <p className="text-error font-body-md text-body-md">{error}</p>}
+      {error && <p className="text-error font-body-md text-body-md m-0">{error}</p>}
 
-      <PrimaryButton
-        onClick={startDeposit}
-        disabled={loading || !amount || Number(amount) <= 0}
-      >
-        {loading ? "…" : t("continueToPayment")}
+      <PrimaryButton onClick={() => void startDeposit()} disabled={!canDeposit}>
+        {loading || quoting ? "…" : t("continueToPayment")}
       </PrimaryButton>
     </div>
   );

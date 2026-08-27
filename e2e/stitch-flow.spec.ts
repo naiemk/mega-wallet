@@ -18,8 +18,14 @@ test.describe("Stitch wallet flows", () => {
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: "Recipient", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Add account/i }).click();
+    await expect(page.getByLabel("Sheba number")).toBeVisible({ timeout: 5_000 });
+    await page.getByLabel("Sheba number").fill("820540102680020817909002");
     await page.getByLabel("Full name").fill("Ada Lovelace");
-    await page.getByLabel("Sheba / IBAN").fill("IR820540102680020817909002");
+    await page.getByRole("button", { name: /Use this account/i }).click();
+    await expect(page.getByText(/Ada Lovelace|Parsian|پارسیان/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
     await page.getByRole("button", { name: "Continue" }).click();
 
     // Unauthenticated transfer start redirects to sign-in (with return path)
@@ -57,8 +63,14 @@ test.describe("Stitch wallet flows", () => {
     await page.getByRole("button", { name: "Get quote" }).click();
     await expect(page.getByText(/Guaranteed rate/i)).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: /Add account/i }).click();
+    await expect(page.getByLabel("Sheba number")).toBeVisible({ timeout: 5_000 });
+    await page.getByLabel("Sheba number").fill("820540102680020817909002");
     await page.getByLabel("Full name").fill("Ada Lovelace");
-    await page.getByLabel("Sheba / IBAN").fill("IR820540102680020817909002");
+    await page.getByRole("button", { name: /Use this account/i }).click();
+    await expect(page.getByText(/Ada Lovelace|Parsian|پارسیان/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
     await page.getByRole("button", { name: "Continue" }).click();
 
     await expect(page.getByRole("heading", { name: /Pay to continue|Deposit/i })).toBeVisible();

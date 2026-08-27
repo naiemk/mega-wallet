@@ -41,6 +41,20 @@ export function translateApiError(error: unknown, t: TFunction): string {
 
   if (/cannot reach api/i.test(raw)) return t("errApiUnreachable");
   if (/request failed/i.test(raw)) return t("errRequestFailed");
+  if (/Amount should be in between/i.test(raw)) {
+    const m = raw.match(/between\s+([A-Z]{3})\s+([\d.]+)\s+and\s+[A-Z]{3}\s+([\d.]+)/i);
+    if (m) {
+      return t("depositAmountOutOfRange", {
+        min: `${m[1]} ${m[2]}`,
+        max: `${m[1]} ${m[3]}`,
+      });
+    }
+  }
+  if (/tc quote failed/i.test(raw)) {
+    const stripped = raw.replace(/^TC quote failed:\s*\d+\s*/i, "").trim();
+    if (stripped) return translateApiError(stripped, t);
+    return t("quoteFailed");
+  }
   if (/tc invoice create failed/i.test(raw)) return t("errDepositFailed");
   if (/email and password/i.test(raw)) return t("errAuthDisabled");
   if (/challenge.?not.?found|CHALLENGE_NOT_FOUND/i.test(raw)) return t("errPasskeyChallenge");

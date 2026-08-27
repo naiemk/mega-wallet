@@ -10,6 +10,42 @@ export function tcLocale(language: string | undefined | null): string {
 
 export type TcCheckoutMode = "embed" | "standalone";
 
+declare const __TC_EMBED_ORIGIN__: string | undefined;
+
+/** Dev framing proxy origin (strips TC X-Frame-Options). Empty in production builds unless defined. */
+export function tcEmbedOrigin(): string {
+  try {
+    if (typeof __TC_EMBED_ORIGIN__ === "string" && __TC_EMBED_ORIGIN__) return __TC_EMBED_ORIGIN__;
+  } catch {
+    /* not defined */
+  }
+  if (typeof import.meta !== "undefined") {
+    const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
+      ?.VITE_TC_EMBED_ORIGIN;
+    if (fromEnv) return fromEnv;
+  }
+  return "";
+}
+
+/**
+ * Point a TC pay URL at the local framing proxy so it can load in an iframe.
+ * Standalone / new-tab keeps the real TC host.
+ */
+export function withTcEmbedProxy(payUrl: string): string {
+  const origin = tcEmbedOrigin();
+  if (!origin || !payUrl) return payUrl;
+  try {
+    const src = new URL(payUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    if (!/trustless-commerce|trustlesscommerce/i.test(src.hostname)) return payUrl;
+    const embed = new URL(origin);
+    src.protocol = embed.protocol;
+    src.host = embed.host;
+    return src.toString();
+  } catch {
+    return payUrl;
+  }
+}
+
 /**
  * Augment a TC `/pay` URL with language and chrome.
  * Embed mode uses `header=none` (no TC header/footer) for iframe hosting.

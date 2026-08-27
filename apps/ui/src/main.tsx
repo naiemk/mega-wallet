@@ -12,6 +12,7 @@ import { DepositPage } from "./pages/DepositPage";
 import { StatusPage } from "./pages/StatusPage";
 import { WalletDepositPage } from "./pages/WalletDepositPage";
 import { WalletDepositStatusPage } from "./pages/WalletDepositStatusPage";
+import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 import { WithdrawPage } from "./pages/WithdrawPage";
 import { WithdrawStatusPage } from "./pages/WithdrawStatusPage";
 import { BankAccountsPage } from "./pages/BankAccountsPage";
@@ -38,6 +39,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/wallet" element={<Navigate to="/" replace />} />
             <Route path="/deposit" element={<WalletDepositPage />} />
             <Route path="/deposit/:id" element={<WalletDepositStatusPage />} />
+            <Route path="/payment/return" element={<PaymentReturnPage />} />
             <Route path="/withdraw" element={<WithdrawPage />} />
             <Route path="/withdraw/:id" element={<WithdrawStatusPage />} />
             <Route path="/account/banks" element={<BankAccountsPage />} />

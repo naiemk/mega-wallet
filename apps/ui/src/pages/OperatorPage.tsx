@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatDigitsForLocale, irrToToman } from "@mega-wallet/core";
 import { api, apiOptional } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
+import { acceptIntegerDigits, displayNumeric } from "../lib/numeric-input";
 import { FloatingField } from "../components/FloatingField";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -200,8 +201,8 @@ export function OperatorPage() {
           <FloatingField
             id="fxMidRate"
             label={t("fxMidRateInput")}
-            value={midRateText}
-            onChange={(e) => setMidRateText(e.target.value)}
+            value={displayNumeric(midRateText, lang)}
+            onChange={(e) => setMidRateText(acceptIntegerDigits(e.target.value))}
             inputMode="numeric"
           />
           {midRateText && Number.isFinite(Number(midRateText)) && (
@@ -217,8 +218,8 @@ export function OperatorPage() {
           <FloatingField
             id="fxTtlHours"
             label={t("fxTtlHours")}
-            value={ttlHoursText}
-            onChange={(e) => setTtlHoursText(e.target.value)}
+            value={displayNumeric(ttlHoursText, lang)}
+            onChange={(e) => setTtlHoursText(acceptIntegerDigits(e.target.value, 4))}
             inputMode="numeric"
           />
 

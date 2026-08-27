@@ -11,6 +11,7 @@ import {
   getSavedPasskeyHint,
   rememberAuthEmail,
 } from "../lib/auth-storage";
+import { acceptIntegerDigits, displayNumeric } from "../lib/numeric-input";
 import { FloatingField } from "../components/FloatingField";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -305,8 +306,8 @@ export function AccountPage() {
                 label={t("otpCode")}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                value={displayNumeric(otp, i18n.language)}
+                onChange={(e) => setOtp(acceptIntegerDigits(e.target.value, 8))}
               />
               <PrimaryButton disabled={busy} onClick={() => void verifyOtp()}>
                 {t("verifyCode")}

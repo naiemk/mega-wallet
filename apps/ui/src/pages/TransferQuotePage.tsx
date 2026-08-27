@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
 import { formatMoney, formatRate, humanizeId } from "../lib/format";
+import { acceptUsdAmountChange, displayNumeric } from "../lib/numeric-input";
 import { useTransferWizard } from "../lib/transfer-wizard";
 import { CurrencySelect, IconCircle } from "../components/IconCircle";
 import { Icon } from "../components/Icon";
@@ -104,9 +105,11 @@ export function TransferQuotePage() {
               <input
                 className="bg-transparent border-none p-0 font-numeric-xl text-numeric-xl text-primary w-2/3 outline-none min-w-0"
                 inputMode="decimal"
-                value={draft.amount}
+                value={displayNumeric(draft.amount, i18n.language)}
                 onChange={(e) => {
-                  setDraft({ amount: e.target.value, quoteId: null });
+                  const next = acceptUsdAmountChange(e.target.value, draft.amount);
+                  if (next === null) return;
+                  setDraft({ amount: next, quoteId: null });
                   setQuote(null);
                 }}
               />

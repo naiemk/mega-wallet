@@ -44,7 +44,10 @@ export function DepositPage() {
       navigate("/transfer");
       return;
     }
-    if (!draft.recipientName || !draft.recipientSheba) {
+    const hasDest =
+      draft.recipientName &&
+      (draft.recipientKind === "card" ? draft.recipientCard : draft.recipientSheba);
+    if (!hasDest) {
       navigate("/transfer/recipient");
       return;
     }
@@ -71,12 +74,20 @@ export function DepositPage() {
         body: JSON.stringify({
           quoteId: draft.quoteId,
           language: i18n.language,
-          recipient: { name: draft.recipientName, sheba: draft.recipientSheba },
+          recipient: {
+            name: draft.recipientName,
+            kind: draft.recipientKind,
+            sheba: draft.recipientSheba || undefined,
+            cardNumber: draft.recipientCard || undefined,
+            bankId: draft.recipientBankId ?? undefined,
+            saveContact: draft.saveContact,
+          },
         }),
       });
       setDraft({
         transferId: result.transferId,
         depositPayUrl: result.deposit.payUrl,
+        saveContact: false,
       });
     } catch (e) {
       handleApiError(e, setError);

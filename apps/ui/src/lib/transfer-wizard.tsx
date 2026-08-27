@@ -13,7 +13,11 @@ export interface TransferDraft {
   provider: string;
   countdownSeconds: number;
   recipientName: string;
+  recipientKind: "sheba" | "card";
   recipientSheba: string;
+  recipientCard: string;
+  recipientBankId: string | null;
+  saveContact: boolean;
   transferId: string | null;
   depositPayUrl: string | null;
 }
@@ -31,7 +35,11 @@ const defaultDraft: TransferDraft = {
   provider: "",
   countdownSeconds: 0,
   recipientName: "",
+  recipientKind: "sheba",
   recipientSheba: "",
+  recipientCard: "",
+  recipientBankId: null,
+  saveContact: false,
   transferId: null,
   depositPayUrl: null,
 };
