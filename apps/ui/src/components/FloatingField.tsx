@@ -16,7 +16,7 @@ export function FloatingField({
       />
       <label
         htmlFor={id}
-        className="absolute left-md top-4 font-body-md text-body-md text-on-surface-variant transition-all peer-focus:top-1 peer-focus:text-label-md peer-focus:text-primary peer-focus:font-label-md peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-label-md peer-[:not(:placeholder-shown)]:font-label-md pointer-events-none"
+        className="absolute start-4 top-4 font-body-md text-body-md text-on-surface-variant transition-all peer-focus:top-1 peer-focus:text-label-md peer-focus:text-primary peer-focus:font-label-md peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-label-md peer-[:not(:placeholder-shown)]:font-label-md pointer-events-none"
       >
         {label}
       </label>

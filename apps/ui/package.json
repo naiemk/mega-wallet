@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.1",
+    "@mega-wallet/core": "workspace:*",
     "@simplewebauthn/browser": "^13.3.0",
     "better-auth": "^1.7.1",
     "i18next": "^25.0.2",

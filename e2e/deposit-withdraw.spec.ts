@@ -27,12 +27,11 @@ test.describe("Deposit and withdraw flows", () => {
     await expect(page.getByText(/Deposit complete/i)).toBeVisible({ timeout: 20_000 });
 
     await page.goto("/history");
-    await page.getByText("Add money").first().click();
-    await expect(page.getByText("Add money")).toBeVisible();
-    await expect(page.getByText(/completed|depositing|deposited/i)).toBeVisible();
+    await expect(page.getByText("Add money").first()).toBeVisible();
+    await expect(page.getByText(/completed|depositing|deposited/i).first()).toBeVisible();
   });
 
-  test("withdraw with contact save", async ({ page }) => {
+  test("withdraw with sheba contact save", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const email = `wd-${Date.now()}@example.com`;
 
@@ -48,13 +47,40 @@ test.describe("Deposit and withdraw flows", () => {
 
     await page.goto("/withdraw");
     await page.getByLabel("Amount to withdraw").fill("10");
+    await page.getByRole("button", { name: /Add account/i }).click();
+    await expect(page.getByLabel("Sheba number")).toBeVisible({ timeout: 5_000 });
+    await page.getByLabel("Sheba number").fill("820540102680020817909002");
     await page.getByLabel("Full name").fill("Ada Lovelace");
-    await page.getByLabel("Sheba / IBAN").fill("IR820540102680020817909002");
+    await page.getByRole("button", { name: /Use this account/i }).click();
+    await expect(page.getByText(/Ada Lovelace|Parsian|پارسیان/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
     await page.getByRole("button", { name: "Confirm withdraw" }).click();
     await expect(page.getByText(/Withdrawal pending/i)).toBeVisible({ timeout: 15_000 });
 
+    await page.goto("/account/banks");
+    await expect(page.getByText(/Ada Lovelace|Parsian|پارسیان/i).first()).toBeVisible();
+  });
+
+  test("withdraw accepts Farsi digits for sheba", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const email = `wd-fa-${Date.now()}@example.com`;
+    await signUpWithOtp(page, { email, name: "Farsi User" });
+
+    await page.goto("/deposit");
+    await page.getByRole("button", { name: "Continue to payment" }).click();
+    await expect(page).toHaveURL(/\/deposit\//, { timeout: 15_000 });
+    const depId = page.url().split("/deposit/")[1];
+    await page.request.post(`/api/dev/simulate-deposit/${depId}`);
+    await page.waitForTimeout(4500);
+
     await page.goto("/withdraw");
-    await expect(page.getByText("Saved contacts")).toBeVisible();
-    await expect(page.getByText("Ada Lovelace")).toBeVisible();
+    await page.getByRole("button", { name: /Add account/i }).click();
+    // Persian digits for known valid Sheba body
+    await page.getByLabel("Sheba number").fill("۸۲۰۵۴۰۱۰۲۶۸۰۰۲۰۸۱۷۹۰۹۰۰۲");
+    await page.getByLabel("Full name").fill("Ali");
+    await expect(page.getByRole("button", { name: /Use this account/i })).toBeEnabled({
+      timeout: 5_000,
+    });
   });
 });

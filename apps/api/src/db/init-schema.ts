@@ -70,6 +70,8 @@ export function initSchema(db: AppDb) {
   tryAlter(db, "ALTER TABLE transfers ADD COLUMN kind TEXT NOT NULL DEFAULT 'remittance'");
   tryAlter(db, "ALTER TABLE transfers ADD COLUMN source_currency TEXT");
   tryAlter(db, "ALTER TABLE transfers ADD COLUMN payment_mode TEXT");
+  tryAlter(db, "ALTER TABLE transfers ADD COLUMN recipient_card TEXT");
+  tryAlter(db, "ALTER TABLE transfers ADD COLUMN recipient_bank_id TEXT");
   db.run(
     sql`UPDATE transfers SET kind = 'wallet_deposit' WHERE quote_id = 'wallet' AND kind = 'remittance'`,
   );
@@ -81,13 +83,31 @@ export function initSchema(db: AppDb) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       name TEXT NOT NULL,
-      sheba TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'sheba',
+      sheba TEXT,
+      card_number TEXT,
+      bank_id TEXT,
       created_at INTEGER NOT NULL
     )
   `);
+  tryAlter(db, "ALTER TABLE withdraw_contacts ADD COLUMN kind TEXT NOT NULL DEFAULT 'sheba'");
+  tryAlter(db, "ALTER TABLE withdraw_contacts ADD COLUMN card_number TEXT");
+  tryAlter(db, "ALTER TABLE withdraw_contacts ADD COLUMN bank_id TEXT");
+  // Replace legacy unique(user, sheba) so card rows can omit sheba (NULL / empty).
+  try {
+    db.run(sql`DROP INDEX IF EXISTS withdraw_contacts_user_sheba`);
+  } catch {
+    /* ignore */
+  }
   db.run(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS withdraw_contacts_user_sheba
     ON withdraw_contacts (user_id, sheba)
+    WHERE sheba IS NOT NULL AND sheba != ''
+  `);
+  db.run(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS withdraw_contacts_user_card
+    ON withdraw_contacts (user_id, card_number)
+    WHERE card_number IS NOT NULL AND card_number != ''
   `);
   db.run(sql`
     CREATE TABLE IF NOT EXISTS ledger_events (
@@ -97,6 +117,15 @@ export function initSchema(db: AppDb) {
       amount_usd_cents INTEGER NOT NULL,
       transfer_id TEXT,
       metadata TEXT,
+      created_at INTEGER NOT NULL
+    )
+  `);
+  db.run(sql`
+    CREATE TABLE IF NOT EXISTS fx_overrides (
+      pair TEXT PRIMARY KEY,
+      mid_rate INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      set_by_user_id TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )
   `);

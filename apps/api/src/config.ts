@@ -15,6 +15,13 @@ export interface AppConfig {
   slippageBps: number;
   affiliateBonusBps: number;
   affiliateMaxBonusUsdCents: number;
+  fxCommissionBps: number;
+  fxMaxDeviationBps: number;
+  fxMinSources: number;
+  fxMinRate: number;
+  fxMaxRate: number;
+  fxCacheTtlMs: number;
+  fxNegativeCacheMs: number;
   internalWorkerToken: string;
   eventLogPath: string;
   s3EventLogBucket: string;
@@ -81,6 +88,13 @@ export function loadConfig(): AppConfig {
     slippageBps: Number(process.env.SLIPPAGE_BPS ?? 100),
     affiliateBonusBps: Number(process.env.AFFILIATE_BONUS_BPS ?? 500),
     affiliateMaxBonusUsdCents: Number(process.env.AFFILIATE_MAX_BONUS_USD_CENTS ?? 5000),
+    fxCommissionBps: Number(process.env.FX_COMMISSION_BPS ?? 100),
+    fxMaxDeviationBps: Number(process.env.FX_MAX_DEVIATION_BPS ?? 200),
+    fxMinSources: Number(process.env.FX_MIN_SOURCES ?? 2),
+    fxMinRate: Number(process.env.FX_MIN_RATE ?? 100_000),
+    fxMaxRate: Number(process.env.FX_MAX_RATE ?? 20_000_000),
+    fxCacheTtlMs: Number(process.env.FX_CACHE_TTL_MS ?? 15_000),
+    fxNegativeCacheMs: Number(process.env.FX_NEGATIVE_CACHE_MS ?? 5_000),
     internalWorkerToken: process.env.INTERNAL_WORKER_TOKEN ?? "dev-worker-token",
     eventLogPath: process.env.EVENT_LOG_PATH ?? "./data/events.jsonl",
     s3EventLogBucket: process.env.S3_EVENT_LOG_BUCKET ?? "",

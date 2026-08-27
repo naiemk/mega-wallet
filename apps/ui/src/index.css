@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "B Yekan";
+  src:
+    url("/fonts/BYekan.woff") format("woff"),
+    url("/fonts/BYekan.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-surface: #f8f9ff;
   --color-surface-dim: #cbdbf5;
@@ -140,6 +150,21 @@ body {
   overscroll-behavior: none;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
+}
+
+/* B Yekan for Farsi UI (set via document.documentElement.lang) */
+html[lang="fa"] {
+  --font-display-lg: "B Yekan", Tahoma, sans-serif;
+  --font-display-md: "B Yekan", Tahoma, sans-serif;
+  --font-display-md-mobile: "B Yekan", Tahoma, sans-serif;
+  --font-body-lg: "B Yekan", Tahoma, sans-serif;
+  --font-body-md: "B Yekan", Tahoma, sans-serif;
+  --font-label-md: "B Yekan", Tahoma, sans-serif;
+  --font-numeric-xl: "B Yekan", Tahoma, sans-serif;
+}
+
+html[lang="fa"] body {
+  font-family: "B Yekan", Tahoma, sans-serif;
 }
 
 html {

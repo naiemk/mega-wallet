@@ -65,7 +65,8 @@ export class QuoteService {
     let destOutMinor = selected.usdcOutMinor;
     if (input.destCurrency === "IRR") {
       const rate = await this.fx.getRate("USDT", "IRR");
-      if (rate) destOutMinor = Math.round((selected.usdcOutMinor / 100) * rate.rate);
+      if (!rate) throw new Error("Rate unavailable");
+      destOutMinor = Math.round((selected.usdcOutMinor / 100) * rate.rate);
     }
 
     const id = ulid();

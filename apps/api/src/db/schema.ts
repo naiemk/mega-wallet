@@ -44,6 +44,8 @@ export const transfers = sqliteTable("transfers", {
   depositPayUrl: text("deposit_pay_url"),
   recipientName: text("recipient_name"),
   recipientSheba: text("recipient_sheba"),
+  recipientCard: text("recipient_card"),
+  recipientBankId: text("recipient_bank_id"),
   withdrawExternalId: text("withdraw_external_id"),
   withdrawStatus: text("withdraw_status"),
   operatorComment: text("operator_comment"),
@@ -60,7 +62,12 @@ export const withdrawContacts = sqliteTable("withdraw_contacts", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   name: text("name").notNull(),
-  sheba: text("sheba").notNull(),
+  kind: text("kind", { enum: ["sheba", "card"] })
+    .notNull()
+    .default("sheba"),
+  sheba: text("sheba"),
+  cardNumber: text("card_number"),
+  bankId: text("bank_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
@@ -78,4 +85,13 @@ export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Operator-set mid-market FX override (one row per pair). */
+export const fxOverrides = sqliteTable("fx_overrides", {
+  pair: text("pair").primaryKey(),
+  midRate: integer("mid_rate").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  setByUserId: text("set_by_user_id").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });

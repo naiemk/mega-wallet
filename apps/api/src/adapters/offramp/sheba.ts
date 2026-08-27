@@ -1,8 +1,10 @@
-import type { OffRampPort, OffRampQuote, PayoutSession } from "@mega-wallet/core";
+import type { FxOraclePort, OffRampPort, OffRampQuote, PayoutSession } from "@mega-wallet/core";
 
 /** Operator-manual Sheba payout — status updated by operator dashboard. */
 export class ShebaOffRampAdapter implements OffRampPort {
   private payouts = new Map<string, PayoutSession>();
+
+  constructor(private readonly fx?: FxOraclePort) {}
 
   async quote(input: {
     destCurrency: string;
@@ -11,13 +13,14 @@ export class ShebaOffRampAdapter implements OffRampPort {
     paymentMethod?: string;
   }): Promise<OffRampQuote[]> {
     if (input.destCurrency !== "IRR") return [];
-    const rate = 50000;
+    const rate = this.fx ? await this.fx.getRate("USDT", "IRR") : null;
+    if (!rate) return [];
     return [
       {
         provider: "sheba-irr",
         destCurrency: "IRR",
         usdcInMinor: input.usdcInMinor,
-        destOutMinor: input.usdcInMinor * rate,
+        destOutMinor: Math.round((input.usdcInMinor / 100) * rate.rate),
       },
     ];
   }

@@ -3,6 +3,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import type { FxOraclePort, OnRampPort } from "@mega-wallet/core";
 import {
   inferTransferKind,
+  parseCardRecipient,
   parseShebaRecipient,
   transitionTransfer,
   walletDepositInvoiceTitle,
@@ -276,7 +277,8 @@ export class TransferService {
       usdAmountCents: row.usdAmountCents,
       destAmountMinor: row.destAmountMinor,
       recipientName: row.recipientName ?? "",
-      recipientSheba: row.recipientSheba ?? "",
+      recipientSheba: row.recipientSheba ?? undefined,
+      recipientCard: row.recipientCard ?? undefined,
     });
   }
 
@@ -470,21 +472,49 @@ export class TransferService {
   async startWalletWithdrawal(
     userId: string,
     amountUsdCents: number,
-    name: string,
-    sheba: string,
-    opts?: { saveContact?: boolean },
+    input: {
+      name: string;
+      kind?: "sheba" | "card";
+      sheba?: string;
+      cardNumber?: string;
+      bankId?: string | null;
+      saveContact?: boolean;
+    },
   ) {
     const balance = await this.ledger.getBalance(userId);
     if (balance.availableUsdCents < amountUsdCents) throw new Error("Insufficient balance");
 
-    const recipient = parseShebaRecipient(name, sheba);
+    const kind = input.kind ?? (input.cardNumber ? "card" : "sheba");
+    let recipientName = input.name;
+    let recipientSheba: string | null = null;
+    let recipientCard: string | null = null;
+    let recipientBankId: string | null = input.bankId ?? null;
+    let payoutRecipient: Record<string, string>;
+
+    if (kind === "card") {
+      const recipient = parseCardRecipient(input.name, input.cardNumber ?? "");
+      recipientName = recipient.name;
+      recipientCard = recipient.cardNumber;
+      recipientBankId = recipient.bankId;
+      payoutRecipient = {
+        name: recipient.name,
+        card: recipient.cardNumber,
+        bankId: recipient.bankId ?? "other",
+      };
+    } else {
+      const recipient = parseShebaRecipient(input.name, input.sheba ?? "");
+      recipientName = recipient.name;
+      recipientSheba = recipient.sheba;
+      recipientBankId = recipient.bankId;
+      payoutRecipient = { name: recipient.name, sheba: recipient.sheba };
+    }
+
     const transferId = ulid();
     const now = new Date();
 
     const rate = await this.fx.getRate("USDT", "IRR");
-    const destAmountMinor = rate
-      ? Math.round((amountUsdCents / 100) * rate.rate)
-      : Math.round(amountUsdCents * 50000);
+    if (!rate) throw new Error("Rate unavailable");
+    const destAmountMinor = Math.round((amountUsdCents / 100) * rate.rate);
 
     await this.db.insert(transfers).values({
       id: transferId,
@@ -492,8 +522,10 @@ export class TransferService {
       quoteId: "wallet-withdraw",
       kind: "wallet_withdraw",
       phase: "recipient_set",
-      recipientName: recipient.name,
-      recipientSheba: recipient.sheba,
+      recipientName,
+      recipientSheba,
+      recipientCard,
+      recipientBankId,
       usdAmountCents: amountUsdCents,
       destAmountMinor,
       createdAt: now,
@@ -503,7 +535,7 @@ export class TransferService {
     const payout = await this.offRamps.resolve("IRR").startPayout({
       transferId,
       usdcInMinor: amountUsdCents,
-      recipient: { name: recipient.name, sheba: recipient.sheba },
+      recipient: payoutRecipient,
       method: "sheba-irr",
     });
 
@@ -525,8 +557,14 @@ export class TransferService {
       transferId,
     });
 
-    if (opts?.saveContact) {
-      await this.saveContact(userId, recipient.name, recipient.sheba);
+    if (input.saveContact) {
+      await this.saveContact(userId, {
+        name: recipientName,
+        kind,
+        sheba: recipientSheba ?? undefined,
+        cardNumber: recipientCard ?? undefined,
+        bankId: recipientBankId,
+      });
     }
 
     return { transferId, payout, kind: "wallet_withdraw" as const };
@@ -540,8 +578,56 @@ export class TransferService {
       .orderBy(desc(withdrawContacts.createdAt));
   }
 
-  async saveContact(userId: string, name: string, sheba: string) {
-    const recipient = parseShebaRecipient(name, sheba);
+  async saveContact(
+    userId: string,
+    input: {
+      name: string;
+      kind?: "sheba" | "card";
+      sheba?: string;
+      cardNumber?: string;
+      bankId?: string | null;
+    },
+  ) {
+    const kind = input.kind ?? (input.cardNumber ? "card" : "sheba");
+    if (kind === "card") {
+      const recipient = parseCardRecipient(input.name, input.cardNumber ?? "");
+      const existing = await this.db
+        .select()
+        .from(withdrawContacts)
+        .where(
+          and(
+            eq(withdrawContacts.userId, userId),
+            eq(withdrawContacts.cardNumber, recipient.cardNumber),
+          ),
+        )
+        .limit(1);
+      if (existing[0]) {
+        await this.db
+          .update(withdrawContacts)
+          .set({
+            name: recipient.name,
+            kind: "card",
+            bankId: recipient.bankId,
+          })
+          .where(eq(withdrawContacts.id, existing[0].id));
+        return { ...existing[0], name: recipient.name, kind: "card" as const, bankId: recipient.bankId };
+      }
+      const id = ulid();
+      const row = {
+        id,
+        userId,
+        name: recipient.name,
+        kind: "card" as const,
+        sheba: "",
+        cardNumber: recipient.cardNumber,
+        bankId: recipient.bankId,
+        createdAt: new Date(),
+      };
+      await this.db.insert(withdrawContacts).values(row);
+      return row;
+    }
+
+    const recipient = parseShebaRecipient(input.name, input.sheba ?? "");
     const existing = await this.db
       .select()
       .from(withdrawContacts)
@@ -550,16 +636,23 @@ export class TransferService {
     if (existing[0]) {
       await this.db
         .update(withdrawContacts)
-        .set({ name: recipient.name })
+        .set({
+          name: recipient.name,
+          kind: "sheba",
+          bankId: recipient.bankId,
+        })
         .where(eq(withdrawContacts.id, existing[0].id));
-      return existing[0];
+      return { ...existing[0], name: recipient.name, kind: "sheba" as const, bankId: recipient.bankId };
     }
     const id = ulid();
     const row = {
       id,
       userId,
       name: recipient.name,
+      kind: "sheba" as const,
       sheba: recipient.sheba,
+      cardNumber: null as string | null,
+      bankId: recipient.bankId,
       createdAt: new Date(),
     };
     await this.db.insert(withdrawContacts).values(row);

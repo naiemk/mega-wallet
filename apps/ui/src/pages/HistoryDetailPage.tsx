@@ -20,6 +20,7 @@ interface TransferDetail {
   depositPayUrl?: string | null;
   recipientName?: string | null;
   recipientSheba?: string | null;
+  recipientCard?: string | null;
   sourceCurrency?: string | null;
   paymentMode?: string | null;
   createdAt?: string;
@@ -112,6 +113,9 @@ export function HistoryDetailPage() {
           {transfer.recipientName && <Row label={t("recipientName")} value={transfer.recipientName} />}
           {transfer.recipientSheba && (
             <Row label={t("shebaIban")} value={transfer.recipientSheba} mono />
+          )}
+          {transfer.recipientCard && (
+            <Row label={t("cardNumber")} value={transfer.recipientCard} mono />
           )}
           {transfer.createdAt && (
             <Row label={t("created")} value={new Date(transfer.createdAt).toLocaleString()} />

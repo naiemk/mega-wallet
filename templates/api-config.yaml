@@ -4,6 +4,11 @@ config:
   fakeRamps: false
   quoteTtlHours: 2
   slippageBps: 100
+  fxCommissionBps: 100
+  fxMaxDeviationBps: 200
+  fxMinSources: 2
+  fxCacheTtlMs: 15000
+  fxNegativeCacheMs: 5000
   operatorWallets:
     ethereum: "0x0000000000000000000000000000000000000001"
     base: "0x0000000000000000000000000000000000000002"

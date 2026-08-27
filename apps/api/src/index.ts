@@ -16,6 +16,7 @@ import {
   StaticFxProvider,
   WallexFxProvider,
 } from "./adapters/fx/index.js";
+import { DbFxOverrideStore } from "./adapters/fx/override-store.js";
 import { createEventLog } from "./adapters/event-log/dual.js";
 import { ShebaOffRampAdapter } from "./adapters/offramp/sheba.js";
 import { OnramperSellOffRampAdapter } from "./adapters/offramp/onramper-sell.js";
@@ -49,22 +50,39 @@ const tcAdapter = new TrustlessCommerceAdapter({
 /** TC owns quotes + invoices when real; Onramper is not called directly. */
 const onRamp = config.fakeRamps ? fakeOnRamp : tcAdapter;
 
-const shebaOffRamp = new ShebaOffRampAdapter();
+const fxOverrideStore = new DbFxOverrideStore(db);
+const fxOpts = {
+  commissionBps: config.fxCommissionBps,
+  maxDeviationBps: config.fxMaxDeviationBps,
+  minSources: config.fxMinSources,
+  minRate: config.fxMinRate,
+  maxRate: config.fxMaxRate,
+  cacheTtlMs: config.fxCacheTtlMs,
+  negativeCacheTtlMs: config.fxNegativeCacheMs,
+  overrideStore: fxOverrideStore,
+};
+
+const fx = config.fakeRamps
+  ? new AggregatingFxOracle(
+      [
+        new StaticFxProvider("nobitex", 500000),
+        new StaticFxProvider("wallex", 501000),
+        new StaticFxProvider("bitpin", 499000),
+      ],
+      fxOpts,
+    )
+  : new AggregatingFxOracle(
+      [new NobitexFxProvider(), new WallexFxProvider(), new BitpinFxProvider()],
+      fxOpts,
+    );
+
+const shebaOffRamp = new ShebaOffRampAdapter(fx);
 const onramperSellOffRamp = new OnramperSellOffRampAdapter({ apiKey: config.onramperApiKey });
 const offRampRegistry = new OffRampRegistry(
   shebaOffRamp,
   onramperSellOffRamp,
   config.fakeRamps ? fakeOffRamp : undefined,
 );
-
-const fx = config.fakeRamps
-  ? new AggregatingFxOracle([
-      new StaticFxProvider("nobitex", 500000),
-      new StaticFxProvider("wallex", 501000),
-      new StaticFxProvider("bitpin", 499000),
-    ])
-  : new AggregatingFxOracle([new NobitexFxProvider(), new WallexFxProvider(), new BitpinFxProvider()]);
-
 const eventLog = createEventLog(config.eventLogPath, config.s3EventLogBucket
   ? {
       bucket: config.s3EventLogBucket,
@@ -93,7 +111,7 @@ const transfers = new TransferService(
   },
 );
 
-const app = createApp({ config, db, auth, quotes, transfers, ledger });
+const app = createApp({ config, db, auth, quotes, transfers, ledger, fx });
 
 serve({ fetch: app.fetch, port: config.port }, () => {
   console.log(`Mega Wallet API listening on :${config.port}`);
