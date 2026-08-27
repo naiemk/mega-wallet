@@ -141,8 +141,22 @@ export class TransferService {
     const status = await this.onRamp.getDepositStatus(row.depositExternalId);
     if (status.status === "paid" || status.status === "paid_partial") {
       await this.creditDepositIfNeeded(row);
+    } else if (status.status === "expired" && row.phase === "depositing") {
+      await this.markDepositExpired(row);
     }
     return status;
+  }
+
+  /** TC invoices time out after a few hours — keep the row visible as quote_expired. */
+  async markDepositExpired(row: TransferRow) {
+    if (row.phase !== "depositing") return row;
+    const nextPhase = transitionTransfer("depositing", "quote_expired");
+    await this.db
+      .update(transfers)
+      .set({ phase: nextPhase, updatedAt: new Date() })
+      .where(eq(transfers.id, row.id));
+    const [updated] = await this.db.select().from(transfers).where(eq(transfers.id, row.id)).limit(1);
+    return updated ?? { ...row, phase: nextPhase };
   }
 
   /** Credit ledger once when invoice is paid (poll or webhook). */
@@ -194,24 +208,52 @@ export class TransferService {
   }
 
   async handleDepositWebhook(externalId: string) {
-    const [row] = await this.db
-      .select()
-      .from(transfers)
-      .where(eq(transfers.depositExternalId, externalId))
-      .limit(1);
-    if (!row) {
-      const byId = await this.db.select().from(transfers).orderBy(desc(transfers.updatedAt));
-      const match = byId.find(
-        (t) =>
-          t.depositExternalId === externalId ||
-          t.id === externalId.replace(/^mw-(wallet-)?/, "") ||
-          `mw-${t.id}` === externalId ||
-          `mw-wallet-${t.id}` === externalId,
-      );
-      if (!match) return null;
-      return this.creditDepositIfNeeded(match);
+    const row = await this.findTransferByDepositRef(externalId);
+    if (!row) return null;
+    // Prefer live TC status when we have an external invoice id
+    if (row.depositExternalId) {
+      await this.pollDeposit(row.id);
+      return this.getTransfer(row.id);
     }
     return this.creditDepositIfNeeded(row);
+  }
+
+  /** Resolve transfer by TC invoice id (0x…) or client_invoice_id (mw-wallet-…). */
+  async findTransferByDepositRef(ref: string) {
+    const raw = ref.trim();
+    if (!raw) return null;
+
+    const [byExternal] = await this.db
+      .select()
+      .from(transfers)
+      .where(eq(transfers.depositExternalId, raw))
+      .limit(1);
+    if (byExternal) return byExternal;
+
+    const stripped = raw.replace(/^mw-(wallet-)?/, "");
+    if (stripped && stripped !== raw) {
+      const [byId] = await this.db.select().from(transfers).where(eq(transfers.id, stripped)).limit(1);
+      if (byId) return byId;
+    }
+
+    const [byExactId] = await this.db.select().from(transfers).where(eq(transfers.id, raw)).limit(1);
+    if (byExactId) return byExactId;
+
+    // Last resort: scan recent depositing rows for client id aliases
+    const recent = await this.db
+      .select()
+      .from(transfers)
+      .where(eq(transfers.phase, "depositing"))
+      .orderBy(desc(transfers.updatedAt));
+    return (
+      recent.find(
+        (t) =>
+          t.depositExternalId === raw ||
+          `mw-${t.id}` === raw ||
+          `mw-wallet-${t.id}` === raw ||
+          t.id === stripped,
+      ) ?? null
+    );
   }
 
   /** Start Sheba payout from deposited remittance that already has recipient fields. */

@@ -89,4 +89,58 @@ describe("remittance recipient-first flow", () => {
     expect(logSpy.mock.calls.some((c) => String(c[0]).includes("operator-email"))).toBe(true);
     logSpy.mockRestore();
   });
+
+  it("resolves deposit refs from TC invoice_id and client_invoice_id", async () => {
+    const dbPath = join(tmpdir(), `mw-tr-${randomUUID()}.db`);
+    const logPath = join(tmpdir(), `mw-tr-${randomUUID()}.jsonl`);
+    const db = createDb(dbPath);
+    initSchema(db);
+
+    const userId = "user-dep-1";
+    await db.insert(users).values({
+      id: userId,
+      email: "dep@example.com",
+      name: "Dep",
+      createdAt: new Date(),
+    });
+
+    const config = {
+      ...loadConfig(),
+      fakeRamps: true,
+      authEmailMode: "console" as const,
+      publicApiUrl: "http://localhost:8080",
+      publicUiUrl: "http://localhost:5173",
+    };
+
+    const fakeOnRamp = new FakeOnRampAdapter();
+    const fakeOffRamp = new FakeOffRampAdapter();
+    const fx = new AggregatingFxOracle([new StaticFxProvider("nobitex", 500000)]);
+    const offRamps = new OffRampRegistry(
+      new ShebaOffRampAdapter(fx),
+      fakeOffRamp as unknown as import("../adapters/offramp/onramper-sell.js").OnramperSellOffRampAdapter,
+      fakeOffRamp,
+    );
+    const ledger = new LedgerService(db, new JsonlEventLog(logPath), config);
+    const transfers = new TransferService(db, fakeOnRamp, offRamps, ledger, fx, fakeOnRamp, config);
+
+    const started = await transfers.startWalletDeposit(userId, {
+      amountUsdCents: 2500,
+      sourceCurrency: "USD",
+      paymentMode: "fiat",
+    });
+
+    const row = await transfers.getTransfer(started.transferId);
+    expect(row?.depositExternalId).toBeTruthy();
+
+    const byExternal = await transfers.findTransferByDepositRef(row!.depositExternalId!);
+    expect(byExternal?.id).toBe(started.transferId);
+
+    const byClient = await transfers.findTransferByDepositRef(`mw-wallet-${started.transferId}`);
+    expect(byClient?.id).toBe(started.transferId);
+
+    await transfers.simulateDepositPaid(started.transferId);
+    await transfers.handleDepositWebhook(`mw-wallet-${started.transferId}`);
+    const settled = await transfers.getTransfer(started.transferId);
+    expect(settled?.phase).toBe("completed");
+  });
 });

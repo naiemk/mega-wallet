@@ -65,9 +65,9 @@ const fxOpts = {
 const fx = config.fakeRamps
   ? new AggregatingFxOracle(
       [
-        new StaticFxProvider("nobitex", 500000),
-        new StaticFxProvider("wallex", 501000),
-        new StaticFxProvider("bitpin", 499000),
+        new StaticFxProvider("nobitex", 2_002_000),
+        new StaticFxProvider("wallex", 2_003_000),
+        new StaticFxProvider("bitpin", 2_001_000),
       ],
       fxOpts,
     )

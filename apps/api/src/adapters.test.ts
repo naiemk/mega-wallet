@@ -155,6 +155,43 @@ describe("adapters", () => {
     expect(status.status).toBe("paid");
   });
 
+  it("parses flat TC invoice GET (status at top level, including swept/expired)", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/invoices/0xswept")) {
+        return new Response(
+          JSON.stringify({
+            id: "0xswept",
+            status: "swept",
+            lang: "fa",
+            clientInvoiceId: "mw-wallet-1",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/invoices/0xexpired")) {
+        return new Response(JSON.stringify({ id: "0xexpired", status: "expired" }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new TrustlessCommerceAdapter({
+      baseUrl: "https://testnet.trustless-commerce.com",
+      operatorWallets: {
+        ethereum: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        base: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        tron: "TFVVt2ZhXCr1HXrKND2Qxmoj7zrKWd4BZt",
+      },
+      fakeRamps: false,
+    });
+
+    expect((await adapter.getDepositStatus("0xswept")).status).toBe("paid");
+    expect((await adapter.getDepositStatus("0xexpired")).status).toBe("expired");
+  });
+
   it("sheba off-ramp quotes IRR via FX oracle", async () => {
     const fx = new AggregatingFxOracle([
       new StaticFxProvider("a", 500000),

@@ -492,19 +492,59 @@ export function createApp(ctx: AppContext) {
       type?: string;
       invoice?: { id?: string; status?: string; clientInvoiceId?: string };
     }>();
-    const externalId =
-      body.invoice?.id ??
-      body.invoiceId ??
-      body.id ??
-      body.clientInvoiceId ??
-      body.invoice?.clientInvoiceId;
+    const refs = [
+      body.invoice?.id,
+      body.invoiceId,
+      body.id,
+      body.clientInvoiceId,
+      body.invoice?.clientInvoiceId,
+    ].filter((x): x is string => Boolean(x));
     const status = body.invoice?.status ?? body.status ?? "";
-    if (!externalId) return c.json({ error: "Missing invoice id" }, 400);
+    if (refs.length === 0) return c.json({ error: "Missing invoice id" }, 400);
     if (status && !/paid|swept/i.test(status)) {
       return c.json({ ok: true, ignored: true });
     }
-    const updated = await ctx.transfers.handleDepositWebhook(externalId);
+    let updated = null;
+    for (const ref of refs) {
+      updated = await ctx.transfers.handleDepositWebhook(ref);
+      if (updated) break;
+    }
     return c.json({ ok: true, transferId: updated?.id ?? null });
+  });
+
+  /**
+   * Browser return from TC checkout. TC redirects here with query params
+   * (invoice_id, client_invoice_id, status). Settle the deposit then send
+   * the user back to the deposit (or transfer) status UI.
+   */
+  app.get("/api/webhooks/trustless-commerce", async (c) => {
+    const invoiceId = c.req.query("invoice_id") ?? c.req.query("invoiceId") ?? "";
+    const clientInvoiceId =
+      c.req.query("client_invoice_id") ?? c.req.query("clientInvoiceId") ?? "";
+    const refs = [invoiceId, clientInvoiceId].filter(Boolean);
+
+    let transfer = null;
+    for (const ref of refs) {
+      transfer = await ctx.transfers.findTransferByDepositRef(ref);
+      if (transfer) break;
+    }
+
+    if (transfer) {
+      await ctx.transfers.pollDeposit(transfer.id);
+      transfer = (await ctx.transfers.getTransfer(transfer.id)) ?? transfer;
+    }
+
+    const ui = ctx.config.publicUiUrl.replace(/\/$/, "");
+    if (!transfer) {
+      return c.redirect(`${ui}/`, 302);
+    }
+
+    const kind = transfer.kind ?? (transfer.quoteId === "wallet" ? "wallet_deposit" : "remittance");
+    const dest =
+      kind === "wallet_deposit" || transfer.quoteId === "wallet"
+        ? `${ui}/deposit/${transfer.id}`
+        : `${ui}/history/${transfer.id}`;
+    return c.redirect(dest, 302);
   });
 
   app.get("/api/admin/users", async (c) => {
