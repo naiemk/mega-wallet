@@ -4,10 +4,12 @@ export function PrimaryButton({
   children,
   className = "",
   variant = "primary",
+  size = "md",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
   variant?: "primary" | "secondary" | "surface" | "danger";
+  size?: "md" | "sm";
 }) {
   const variants = {
     primary:
@@ -18,10 +20,14 @@ export function PrimaryButton({
     danger:
       "bg-surface-container border border-error-container text-error hover:bg-error-container/30",
   };
+  const sizes = {
+    md: "w-full h-12 font-body-lg text-body-lg px-md",
+    sm: "h-8 font-label-md text-label-md px-sm whitespace-nowrap",
+  };
   return (
     <button
       type="button"
-      className={`w-full h-12 rounded-lg font-body-lg text-body-lg font-semibold flex items-center justify-center gap-sm px-md active:scale-[0.98] transition-transform disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`rounded-lg font-semibold flex items-center justify-center gap-xs active:scale-[0.98] transition-transform disabled:opacity-50 ${sizes[size]} ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

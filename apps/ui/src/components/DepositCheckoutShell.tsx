@@ -22,14 +22,25 @@ export function DepositCheckoutShell({
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-3.5rem)]">
-      <div className="shrink-0 px-container-margin py-sm flex flex-wrap items-center justify-center gap-sm border-b border-outline-variant/20 bg-surface/95">
-        <PrimaryButton variant="surface" onClick={() => openCheckout(payUrl, i18n.language)}>
-          {t("openPaymentNewTab")}
-          <Icon name="open_in_new" />
+      <div className="shrink-0 h-10 px-container-margin flex items-center gap-xs border-b border-outline-variant/20 bg-surface/95">
+        <PrimaryButton
+          size="sm"
+          className="flex-1 min-w-0 border border-outline-variant"
+          variant="surface"
+          onClick={() => openCheckout(payUrl, i18n.language)}
+        >
+          {t("openPaymentNewTabCompact")}
+          <Icon name="open_in_new" className="text-[16px]!" />
         </PrimaryButton>
-        <PrimaryButton variant="surface" onClick={() => void onCheckStatus()} disabled={checking}>
-          <Icon name="refresh" />
-          {checking ? t("checkingStatus") : t("checkPaymentStatus")}
+        <PrimaryButton
+          size="sm"
+          className="flex-1 min-w-0 border border-outline-variant"
+          variant="surface"
+          onClick={() => void onCheckStatus()}
+          disabled={checking}
+        >
+          <Icon name="refresh" className="text-[16px]!" />
+          {checking ? t("checkingStatus") : t("checkPaymentStatusCompact")}
         </PrimaryButton>
       </div>
       <div className="flex-1 min-h-0">
