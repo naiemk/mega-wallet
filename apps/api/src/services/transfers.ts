@@ -29,6 +29,7 @@ export class TransferService {
     private readonly config?: Pick<
       AppConfig,
       | "publicApiUrl"
+      | "publicUiUrl"
       | "slippageBps"
       | "authEmailMode"
       | "resendApiKey"
@@ -67,7 +68,14 @@ export class TransferService {
     userId: string,
     quoteId: string,
     language?: string,
-    recipientInput?: { name: string; sheba: string },
+    recipientInput?: {
+      name: string;
+      kind?: "sheba" | "card";
+      sheba?: string;
+      cardNumber?: string;
+      bankId?: string | null;
+      saveContact?: boolean;
+    },
   ) {
     const [quote] = await this.db.select().from(quotes).where(eq(quotes.id, quoteId)).limit(1);
     if (!quote) throw new Error("Quote not found");
@@ -75,9 +83,25 @@ export class TransferService {
       throw new Error("Quote expired");
     }
 
-    const recipient = recipientInput
-      ? parseShebaRecipient(recipientInput.name, recipientInput.sheba)
-      : null;
+    let recipientName: string | null = null;
+    let recipientSheba: string | null = null;
+    let recipientCard: string | null = null;
+    let recipientBankId: string | null = null;
+
+    if (recipientInput) {
+      const kind = recipientInput.kind ?? (recipientInput.cardNumber ? "card" : "sheba");
+      if (kind === "card") {
+        const recipient = parseCardRecipient(recipientInput.name, recipientInput.cardNumber ?? "");
+        recipientName = recipient.name;
+        recipientCard = recipient.cardNumber;
+        recipientBankId = recipient.bankId;
+      } else {
+        const recipient = parseShebaRecipient(recipientInput.name, recipientInput.sheba ?? "");
+        recipientName = recipient.name;
+        recipientSheba = recipient.sheba;
+        recipientBankId = recipient.bankId;
+      }
+    }
 
     const [profile] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     const lang = language ?? profile?.preferredLanguage ?? undefined;
@@ -98,8 +122,8 @@ export class TransferService {
       country: "us",
       slippageBps: quote.slippageBps ?? this.config?.slippageBps,
       lang,
-      callbackUrl: this.config?.publicApiUrl
-        ? `${this.config.publicApiUrl.replace(/\/$/, "")}/api/webhooks/trustless-commerce`
+      callbackUrl: this.config?.publicUiUrl
+        ? `${this.config.publicUiUrl.replace(/\/$/, "")}/payment/return`
         : undefined,
     });
 
@@ -116,8 +140,10 @@ export class TransferService {
       paymentMode: "fiat",
       usdAmountCents: quote.usdcOutMinor,
       destAmountMinor: quote.destOutMinor,
-      recipientName: recipient?.name ?? null,
-      recipientSheba: recipient?.sheba ?? null,
+      recipientName,
+      recipientSheba,
+      recipientCard,
+      recipientBankId,
       createdAt: now,
       updatedAt: now,
     });
@@ -129,6 +155,16 @@ export class TransferService {
         .update(users)
         .set({ lastAttemptedPaymentMethod: quote.paymentMethod })
         .where(eq(users.id, userId));
+    }
+
+    if (recipientInput?.saveContact && recipientName) {
+      await this.saveContact(userId, {
+        name: recipientName,
+        kind: recipientCard ? "card" : "sheba",
+        sheba: recipientSheba ?? undefined,
+        cardNumber: recipientCard ?? undefined,
+        bankId: recipientBankId,
+      });
     }
 
     return { transferId, deposit, reused: false as const, kind: "remittance" as const };
@@ -199,7 +235,7 @@ export class TransferService {
       kind === "remittance" &&
       credited.phase === "deposited" &&
       credited.recipientName &&
-      credited.recipientSheba
+      (credited.recipientSheba || credited.recipientCard)
     ) {
       return this.initiateRecipientPayout(credited);
     }
@@ -256,20 +292,45 @@ export class TransferService {
     );
   }
 
-  /** Start Sheba payout from deposited remittance that already has recipient fields. */
+  /** Start Sheba/card payout from deposited remittance that already has recipient fields. */
   private async initiateRecipientPayout(row: TransferRow) {
     if (row.phase !== "deposited") return row;
-    if (!row.recipientName || !row.recipientSheba) return row;
+    if (!row.recipientName || (!row.recipientSheba && !row.recipientCard)) return row;
 
-    const recipient = parseShebaRecipient(row.recipientName, row.recipientSheba);
+    let recipientName = row.recipientName;
+    let recipientSheba: string | null = row.recipientSheba;
+    let recipientCard: string | null = row.recipientCard;
+    let recipientBankId: string | null = row.recipientBankId;
+    let payoutRecipient: Record<string, string>;
+
+    if (row.recipientCard) {
+      const recipient = parseCardRecipient(row.recipientName, row.recipientCard);
+      recipientName = recipient.name;
+      recipientCard = recipient.cardNumber;
+      recipientBankId = recipient.bankId;
+      payoutRecipient = {
+        name: recipient.name,
+        card: recipient.cardNumber,
+        bankId: recipient.bankId ?? "other",
+      };
+    } else {
+      const recipient = parseShebaRecipient(row.recipientName, row.recipientSheba ?? "");
+      recipientName = recipient.name;
+      recipientSheba = recipient.sheba;
+      recipientBankId = recipient.bankId;
+      payoutRecipient = { name: recipient.name, sheba: recipient.sheba };
+    }
+
     const nextPhase = transitionTransfer("deposited", "recipient_set");
 
     await this.db
       .update(transfers)
       .set({
         phase: nextPhase,
-        recipientName: recipient.name,
-        recipientSheba: recipient.sheba,
+        recipientName,
+        recipientSheba,
+        recipientCard,
+        recipientBankId,
         updatedAt: new Date(),
       })
       .where(eq(transfers.id, row.id));
@@ -277,7 +338,7 @@ export class TransferService {
     const payout = await this.offRamps.resolve("IRR").startPayout({
       transferId: row.id,
       usdcInMinor: row.usdAmountCents,
-      recipient: { name: recipient.name, sheba: recipient.sheba },
+      recipient: payoutRecipient,
       method: "sheba-irr",
     });
 
@@ -301,8 +362,9 @@ export class TransferService {
 
     void this.notifyOperatorSettlement({
       ...row,
-      recipientName: recipient.name,
-      recipientSheba: recipient.sheba,
+      recipientName,
+      recipientSheba,
+      recipientCard,
     }).catch((err) => {
       console.error("[transfers] operator settlement email failed", err);
     });
@@ -473,8 +535,8 @@ export class TransferService {
       country: "us",
       slippageBps: this.config?.slippageBps,
       lang: input.language,
-      callbackUrl: this.config?.publicApiUrl
-        ? `${this.config.publicApiUrl.replace(/\/$/, "")}/api/webhooks/trustless-commerce`
+      callbackUrl: this.config?.publicUiUrl
+        ? `${this.config.publicUiUrl.replace(/\/$/, "")}/payment/return`
         : undefined,
     });
 

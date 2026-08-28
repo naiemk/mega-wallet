@@ -42,7 +42,7 @@ const tcAdapter = new TrustlessCommerceAdapter({
     base: config.operatorWallets.base,
     tron: config.operatorWallets.tron,
   },
-  callbackBaseUrl: config.publicApiUrl,
+  callbackBaseUrl: config.publicUiUrl,
   slippageBps: config.slippageBps,
   fakeRamps: config.fakeRamps,
 });
@@ -103,6 +103,7 @@ const transfers = new TransferService(
   config.fakeRamps ? fakeOnRamp : undefined,
   {
     publicApiUrl: config.publicApiUrl,
+    publicUiUrl: config.publicUiUrl,
     slippageBps: config.slippageBps,
     authEmailMode: config.authEmailMode,
     resendApiKey: config.resendApiKey,

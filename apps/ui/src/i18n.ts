@@ -45,6 +45,8 @@ const resources = {
       depositExpiredHint:
         "This payment link timed out. Start a new deposit — expired invoices stay in your history.",
       startNewDeposit: "Start a new deposit",
+      depositAmountOutOfRange: "Enter an amount between {{min}} and {{max}}",
+      confirmingPayment: "Confirming payment…",
       paymentMethod: "Payment method",
       quoteRefreshing: "Updating quote…",
       quoteFailed: "Could not get a quote. Check the amount and try again.",
@@ -193,6 +195,7 @@ const resources = {
       affiliateEarned: "Bonus earned",
       affiliateLink: "Your invite link",
       language: "Language",
+      languageHint: "Choose the language used across the app.",
       preferences: "Preferences",
       more: "More",
       operatorHint: "Process withdrawals",
@@ -305,6 +308,8 @@ const resources = {
       depositExpiredHint:
         "لینک پرداخت منقضی شده است. واریز جدید شروع کنید — موارد منقضی در تاریخچه می‌مانند.",
       startNewDeposit: "شروع واریز جدید",
+      depositAmountOutOfRange: "مبلغ را بین {{min}} و {{max}} وارد کنید",
+      confirmingPayment: "در حال تأیید پرداخت…",
       paymentMethod: "روش پرداخت",
       quoteRefreshing: "در حال به‌روزرسانی قیمت…",
       quoteFailed: "نرخ دریافت نشد. مبلغ را بررسی کنید.",
@@ -453,6 +458,7 @@ const resources = {
       affiliateEarned: "پاداش جمع‌شده",
       affiliateLink: "لینک دعوت",
       language: "زبان",
+      languageHint: "زبان مورد استفاده در برنامه را انتخاب کنید.",
       preferences: "تنظیمات",
       more: "بیشتر",
       operatorHint: "پردازش برداشت‌ها",
@@ -565,6 +571,8 @@ const resources = {
       depositExpiredHint:
         "انتهت صلاحية رابط الدفع. ابدأ إيداعًا جديدًا — تبقى الفواتير المنتهية في السجل.",
       startNewDeposit: "بدء إيداع جديد",
+      depositAmountOutOfRange: "أدخل مبلغًا بين {{min}} و {{max}}",
+      confirmingPayment: "جارٍ تأكيد الدفع…",
       paymentMethod: "طريقة الدفع",
       quoteRefreshing: "تحديث السعر…",
       quoteFailed: "تعذّر الحصول على عرض سعر. تحقق من المبلغ.",
@@ -713,6 +721,7 @@ const resources = {
       affiliateEarned: "المكافآت",
       affiliateLink: "رابط الدعوة",
       language: "اللغة",
+      languageHint: "اختر اللغة المستخدمة في التطبيق.",
       preferences: "التفضيلات",
       more: "المزيد",
       operatorHint: "معالجة السحوبات",
@@ -789,13 +798,13 @@ const saved = typeof localStorage !== "undefined" ? localStorage.getItem("mw-lan
 
 void i18n.use(initReactI18next).init({
   resources,
-  lng: saved ?? "en",
-  fallbackLng: "en",
+  lng: saved ?? "fa",
+  fallbackLng: "fa",
   interpolation: { escapeValue: false },
 });
 
 if (typeof document !== "undefined") {
-  const lang = saved ?? "en";
+  const lang = saved ?? "fa";
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "fa" || lang === "ar" ? "rtl" : "ltr";
 }

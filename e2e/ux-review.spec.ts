@@ -56,9 +56,14 @@ test.describe("UX review: deposit, trade, history", () => {
     await shot(page, "07-transfer-quote");
 
     await page.getByRole("button", { name: /^Continue$/i }).click();
-    await expect(page.getByText(/Enter recipient|Full name|Sheba/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Pick a destination|Add account|Sheba/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.getByRole("button", { name: /Add account/i }).click();
+    await expect(page.getByLabel(/Sheba number/i)).toBeVisible({ timeout: 5_000 });
+    await page.getByLabel(/Sheba number/i).fill("820540102680020817909002");
     await page.getByLabel(/Full name/i).fill("Sara Example");
-    await page.getByLabel(/Sheba|IBAN/i).fill("IR820540102680020817909002");
+    await page.getByRole("button", { name: /Use this account/i }).click();
     await shot(page, "08-transfer-recipient");
     await page.getByRole("button", { name: /Continue|Next|Save/i }).first().click();
 
