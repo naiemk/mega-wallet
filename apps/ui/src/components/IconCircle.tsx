@@ -35,21 +35,34 @@ export function FlagCode({ code }: { code: string }) {
 export function CurrencySelect({
   code,
   onClick,
+  locked = false,
 }: {
   code: string;
   onClick?: () => void;
+  /** Fixed currency — no chevron / not interactive. */
+  locked?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center bg-pill rounded-full pl-1 pr-3 py-1 hover:bg-tertiary-fixed transition-colors"
-    >
+  const className =
+    "flex items-center bg-pill rounded-full pl-1 pr-3 py-1" +
+    (locked ? "" : " hover:bg-tertiary-fixed transition-colors");
+
+  const inner = (
+    <>
       <div className="w-6 h-6 rounded-full overflow-hidden me-2">
         <FlagCode code={code} />
       </div>
       <span className="font-label-md text-label-md text-on-background">{code}</span>
-      <Icon name="expand_more" className="text-on-surface-variant ms-1 text-[16px]!" />
+      {!locked && <Icon name="expand_more" className="text-on-surface-variant ms-1 text-[16px]!" />}
+    </>
+  );
+
+  if (locked) {
+    return <div className={className}>{inner}</div>;
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {inner}
     </button>
   );
 }

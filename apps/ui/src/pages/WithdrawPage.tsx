@@ -12,6 +12,7 @@ import {
   DestinationPicker,
 } from "../components/DestinationPicker";
 import { type DestinationKind } from "../components/DestinationKindToggle";
+import { CurrencySelect } from "../components/IconCircle";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -131,29 +132,34 @@ export function WithdrawPage() {
   return (
     <div className="px-container-margin py-lg flex flex-col gap-lg w-full">
       <SurfaceCard className="p-md space-y-md">
-        <div className="flex items-center justify-between gap-md">
-          <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="wdAmount">
-            {t("withdrawAmount")}
-          </label>
-          <button
-            type="button"
-            onClick={withdrawAll}
-            className="font-label-md text-label-md text-primary hover:underline shrink-0"
-          >
-            {t("withdrawAll")} ({formatDigitsForLocale((available / 100).toFixed(2), lang)})
-          </button>
-        </div>
-        <div className="flex items-baseline gap-xs">
-          <span className="font-display-md text-display-md text-primary/70">$</span>
-          <input
-            id="wdAmount"
-            inputMode="decimal"
-            className="w-full bg-transparent outline-none font-numeric-xl text-numeric-xl text-primary border-0 p-0"
-            value={displayAmount}
-            onChange={(e) => onAmountChange(e.target.value)}
-            onBlur={() => setAmountTouched(true)}
-            aria-label={t("withdrawAmount")}
-          />
+        <div>
+          <div className="flex items-center justify-between gap-md mb-xs">
+            <label
+              className="block font-label-md text-label-md text-on-surface-variant"
+              htmlFor="wdAmount"
+            >
+              {t("withdrawAmount")}
+            </label>
+            <button
+              type="button"
+              onClick={withdrawAll}
+              className="font-label-md text-label-md text-primary hover:underline shrink-0"
+            >
+              {t("withdrawAll")} ({formatDigitsForLocale((available / 100).toFixed(2), lang)})
+            </button>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-outline-variant focus-within:border-primary focus-within:border-2 bg-surface-container-low px-md py-sm gap-sm">
+            <input
+              id="wdAmount"
+              inputMode="decimal"
+              className="bg-transparent border-none p-0 font-numeric-xl text-numeric-xl text-primary w-2/3 outline-none min-w-0"
+              value={displayAmount}
+              onChange={(e) => onAmountChange(e.target.value)}
+              onBlur={() => setAmountTouched(true)}
+              aria-label={t("withdrawAmount")}
+            />
+            <CurrencySelect code="USD" locked />
+          </div>
         </div>
         <p className="font-label-md text-label-md text-outline m-0">
           {t("available")}: ${formatDigitsForLocale((available / 100).toFixed(2), lang)}

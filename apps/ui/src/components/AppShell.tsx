@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { flagForLanguage } from "../lib/language";
 import { BrandLogo } from "./BrandLogo";
 import { Icon } from "./Icon";
 
@@ -19,6 +20,7 @@ function titleForPath(pathname: string, t: (k: string) => string): string {
   if (pathname.startsWith("/history")) return t("history");
   if (pathname.startsWith("/account/passkeys")) return t("passkeys");
   if (pathname.startsWith("/account/banks")) return t("bankAccounts");
+  if (pathname.startsWith("/account/language")) return t("language");
   if (pathname.startsWith("/account")) return t("account");
   if (pathname.startsWith("/operator")) return t("operator");
   if (pathname.startsWith("/invite")) return t("invite");
@@ -81,18 +83,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </h1>
           )}
 
-          {showBack ? (
-            <button
-              type="button"
-              className="w-10 h-10 -me-2 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-colors"
-              onClick={() => navigate("/")}
-              aria-label={t("appName")}
-            >
-              <BrandLogo variant="mark" className="opacity-90" />
-            </button>
-          ) : (
-            <div className="w-10" />
-          )}
+          <button
+            type="button"
+            className="w-10 h-10 -me-2 flex items-center justify-center rounded-full hover:bg-surface-container-low active:scale-95 transition-colors text-xl leading-none"
+            onClick={() => navigate("/account/language")}
+            aria-label={t("language")}
+            title={t("language")}
+          >
+            <span aria-hidden>{flagForLanguage(i18n.language)}</span>
+          </button>
         </header>
 
         <main className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain ${hideNav ? "pb-lg" : "pb-md"}`}>

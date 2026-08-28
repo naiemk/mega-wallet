@@ -13,10 +13,8 @@ export default defineConfig(({ mode, command }) => {
     process.env.TRUSTLESS_COMMERCE_URL ||
     "https://testnet.trustless-commerce.com";
   const embedPort = Number(env.TC_EMBED_PROXY_PORT || rootEnv.TC_EMBED_PROXY_PORT || 5174);
-  const embedOrigin =
-    env.VITE_TC_EMBED_ORIGIN ||
-    rootEnv.VITE_TC_EMBED_ORIGIN ||
-    (command === "serve" ? `http://127.0.0.1:${embedPort}` : "");
+  // Prefer runtime hostname in the browser; only set a bake-time override via env.
+  const embedOrigin = env.VITE_TC_EMBED_ORIGIN || rootEnv.VITE_TC_EMBED_ORIGIN || "";
 
   return {
     plugins: [
@@ -27,6 +25,7 @@ export default defineConfig(({ mode, command }) => {
     ],
     define: {
       __TC_EMBED_ORIGIN__: JSON.stringify(embedOrigin),
+      "import.meta.env.VITE_TC_EMBED_PORT": JSON.stringify(String(embedPort)),
     },
     server: {
       port: 5173,

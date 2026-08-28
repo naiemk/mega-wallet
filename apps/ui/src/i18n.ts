@@ -195,6 +195,7 @@ const resources = {
       affiliateEarned: "Bonus earned",
       affiliateLink: "Your invite link",
       language: "Language",
+      languageHint: "Choose the language used across the app.",
       preferences: "Preferences",
       more: "More",
       operatorHint: "Process withdrawals",
@@ -457,6 +458,7 @@ const resources = {
       affiliateEarned: "پاداش جمع‌شده",
       affiliateLink: "لینک دعوت",
       language: "زبان",
+      languageHint: "زبان مورد استفاده در برنامه را انتخاب کنید.",
       preferences: "تنظیمات",
       more: "بیشتر",
       operatorHint: "پردازش برداشت‌ها",
@@ -719,6 +721,7 @@ const resources = {
       affiliateEarned: "المكافآت",
       affiliateLink: "رابط الدعوة",
       language: "اللغة",
+      languageHint: "اختر اللغة المستخدمة في التطبيق.",
       preferences: "التفضيلات",
       more: "المزيد",
       operatorHint: "معالجة السحوبات",
@@ -795,13 +798,13 @@ const saved = typeof localStorage !== "undefined" ? localStorage.getItem("mw-lan
 
 void i18n.use(initReactI18next).init({
   resources,
-  lng: saved ?? "en",
-  fallbackLng: "en",
+  lng: saved ?? "fa",
+  fallbackLng: "fa",
   interpolation: { escapeValue: false },
 });
 
 if (typeof document !== "undefined") {
-  const lang = saved ?? "en";
+  const lang = saved ?? "fa";
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "fa" || lang === "ar" ? "rtl" : "ltr";
 }

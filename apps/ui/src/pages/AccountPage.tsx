@@ -49,7 +49,6 @@ export function AccountPage() {
   const [profile, setProfile] = useState<Me | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showLang, setShowLang] = useState(false);
   const [passkeyHint, setPasskeyHint] = useState(false);
   const [supportsPasskey, setSupportsPasskey] = useState(true);
 
@@ -103,14 +102,6 @@ export function AccountPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function setLanguage(lang: string) {
-    void i18n.changeLanguage(lang);
-    localStorage.setItem("mw-lang", lang);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "fa" || lang === "ar" ? "rtl" : "ltr";
-    setShowLang(false);
   }
 
   async function refreshProfile() {
@@ -438,40 +429,9 @@ export function AccountPage() {
             icon="language"
             title={t("language")}
             subtitle={LANG_LABELS[i18n.language] ?? i18n.language}
-            onClick={() => setShowLang((v) => !v)}
+            onClick={() => navigate("/account/language")}
             border={false}
-            trailing={
-              <select
-                aria-label={t("language")}
-                className="font-body-md text-body-md text-on-surface-variant bg-transparent border-0 outline-none"
-                value={i18n.language}
-                onChange={(e) => setLanguage(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="en">English</option>
-                <option value="fa">فارسی</option>
-                <option value="ar">العربية</option>
-              </select>
-            }
           />
-          {showLang && (
-            <div className="px-md pb-md flex gap-sm">
-              {(["en", "fa", "ar"] as const).map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  className={`px-3 py-1 rounded-full font-label-md text-label-md ${
-                    i18n.language === lang
-                      ? "bg-primary text-on-primary"
-                      : "bg-surface-container text-on-surface"
-                  }`}
-                  onClick={() => setLanguage(lang)}
-                >
-                  {LANG_LABELS[lang]}
-                </button>
-              ))}
-            </div>
-          )}
         </SurfaceCard>
       </section>
 

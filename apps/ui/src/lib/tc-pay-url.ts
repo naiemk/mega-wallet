@@ -12,17 +12,29 @@ export type TcCheckoutMode = "embed" | "standalone";
 
 declare const __TC_EMBED_ORIGIN__: string | undefined;
 
-/** Dev framing proxy origin (strips TC X-Frame-Options). Empty in production builds unless defined. */
+const DEFAULT_EMBED_PORT = 5174;
+
+/**
+ * Origin for the TC framing proxy.
+ * In dev, derive from the page hostname so Cursor port-forwarding works
+ * (127.0.0.1 inside the container is not reachable from the browser).
+ */
 export function tcEmbedOrigin(): string {
+  if (typeof import.meta !== "undefined") {
+    const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
+      ?.VITE_TC_EMBED_ORIGIN;
+    if (fromEnv) return fromEnv;
+  }
   try {
     if (typeof __TC_EMBED_ORIGIN__ === "string" && __TC_EMBED_ORIGIN__) return __TC_EMBED_ORIGIN__;
   } catch {
     /* not defined */
   }
-  if (typeof import.meta !== "undefined") {
-    const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
-      ?.VITE_TC_EMBED_ORIGIN;
-    if (fromEnv) return fromEnv;
+  if (typeof window !== "undefined" && import.meta.env?.DEV) {
+    const port =
+      (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_TC_EMBED_PORT ||
+      String(DEFAULT_EMBED_PORT);
+    return `${window.location.protocol}//${window.location.hostname}:${port}`;
   }
   return "";
 }

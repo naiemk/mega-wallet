@@ -16,30 +16,53 @@ const HOP_BY_HOP = new Set([
   "content-encoding",
 ]);
 
+function stripFramingHeaders(headers: http.IncomingHttpHeaders): http.OutgoingHttpHeaders {
+  const out: http.OutgoingHttpHeaders = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (!value) continue;
+    const lower = key.toLowerCase();
+    if (HOP_BY_HOP.has(lower)) continue;
+    if (lower === "x-frame-options") continue;
+    if (lower === "content-security-policy") {
+      const raw = Array.isArray(value) ? value.join(";") : String(value);
+      const cleaned = raw
+        .split(";")
+        .map((d) => d.trim())
+        .filter((d) => d && !/^frame-ancestors\b/i.test(d))
+        .join("; ");
+      if (cleaned) out[key] = cleaned;
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
 /**
  * Dev-only reverse proxy so TC `/pay` can be framed.
- * TC sends `X-Frame-Options: DENY`; this origin strips framing headers so the
- * wallet UI can iframe checkout. SPA `/api` and `/assets` stay on this origin.
+ * Listens on 0.0.0.0 so Cursor/VS Code port forwarding can expose it to the browser.
+ * TC sends `X-Frame-Options: DENY`; this origin strips framing headers.
  */
 export function tcEmbedProxyPlugin(opts?: {
   target?: string;
   port?: number;
 }): Plugin {
-  const targetBase = (opts?.target ?? process.env.TRUSTLESS_COMMERCE_URL ?? "https://testnet.trustless-commerce.com").replace(
-    /\/$/,
-    "",
-  );
+  const targetBase = (
+    opts?.target ??
+    process.env.TRUSTLESS_COMMERCE_URL ??
+    "https://testnet.trustless-commerce.com"
+  ).replace(/\/$/, "");
   const port = opts?.port ?? Number(process.env.TC_EMBED_PROXY_PORT ?? 5174);
 
   return {
     name: "tc-embed-proxy",
-    configureServer() {
+    configureServer(server) {
       const target = new URL(targetBase);
       const client = target.protocol === "http:" ? http : https;
 
-      const server = http.createServer((req, res) => {
+      const proxyServer = http.createServer((req, res) => {
         const headers: http.OutgoingHttpHeaders = { ...req.headers, host: target.host };
-        delete headers["accept-encoding"]; // simplify piping
+        delete headers["accept-encoding"];
 
         const upstream = client.request(
           {
@@ -52,25 +75,7 @@ export function tcEmbedProxyPlugin(opts?: {
             servername: target.hostname,
           },
           (up) => {
-            const out: http.OutgoingHttpHeaders = {};
-            for (const [key, value] of Object.entries(up.headers)) {
-              if (!value) continue;
-              const lower = key.toLowerCase();
-              if (HOP_BY_HOP.has(lower)) continue;
-              if (lower === "x-frame-options") continue;
-              if (lower === "content-security-policy") {
-                const raw = Array.isArray(value) ? value.join(";") : String(value);
-                const cleaned = raw
-                  .split(";")
-                  .map((d) => d.trim())
-                  .filter((d) => d && !/^frame-ancestors\b/i.test(d))
-                  .join("; ");
-                if (cleaned) out[key] = cleaned;
-                continue;
-              }
-              out[key] = value;
-            }
-            res.writeHead(up.statusCode ?? 502, out);
+            res.writeHead(up.statusCode ?? 502, stripFramingHeaders(up.headers));
             up.pipe(res);
           },
         );
@@ -85,20 +90,20 @@ export function tcEmbedProxyPlugin(opts?: {
         req.pipe(upstream);
       });
 
-      server.on("error", (err) => {
+      proxyServer.on("error", (err) => {
         console.warn(`[tc-embed-proxy] could not bind :${port}:`, err.message);
       });
 
-      server.listen(port, "127.0.0.1", () => {
-        console.info(`[tc-embed-proxy] framing proxy ${targetBase} → http://127.0.0.1:${port}`);
+      // 0.0.0.0 so forwarded ports (Cursor/Codespaces) reach the proxy from the browser.
+      proxyServer.listen(port, "0.0.0.0", () => {
+        console.info(`[tc-embed-proxy] framing proxy ${targetBase} → http://0.0.0.0:${port}`);
       });
 
       const close = () => {
-        server.close();
+        proxyServer.close();
       };
       process.once("exit", close);
-      process.once("SIGINT", close);
-      process.once("SIGTERM", close);
+      server.httpServer?.once("close", close);
     },
   };
 }

@@ -19,6 +19,7 @@ import { BankAccountsPage } from "./pages/BankAccountsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HistoryDetailPage } from "./pages/HistoryDetailPage";
 import { AccountPage } from "./pages/AccountPage";
+import { LanguagePage } from "./pages/LanguagePage";
 import { PasskeysPage } from "./pages/PasskeysPage";
 import { OperatorPage } from "./pages/OperatorPage";
 import { InvitePage } from "./pages/InvitePage";
@@ -50,6 +51,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/history/:id" element={<HistoryDetailPage />} />
             <Route path="/account" element={<AccountPage />} />
+            <Route path="/account/language" element={<LanguagePage />} />
             <Route path="/account/passkeys" element={<PasskeysPage />} />
             <Route path="/operator" element={<OperatorPage />} />
             <Route path="/invite" element={<InvitePage />} />
