@@ -10,49 +10,36 @@ export function tcLocale(language: string | undefined | null): string {
 
 export type TcCheckoutMode = "embed" | "standalone";
 
-declare const __TC_EMBED_ORIGIN__: string | undefined;
+declare const __TC_EMBED_PREFIX__: string | undefined;
 
-const DEFAULT_EMBED_PORT = 5174;
-
-/**
- * Origin for the TC framing proxy.
- * In dev, derive from the page hostname so Cursor port-forwarding works
- * (127.0.0.1 inside the container is not reachable from the browser).
- */
-export function tcEmbedOrigin(): string {
+/** Dev embed mount path (must match tc-embed-proxy). */
+export function tcEmbedPrefix(): string {
   if (typeof import.meta !== "undefined") {
     const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
-      ?.VITE_TC_EMBED_ORIGIN;
+      ?.VITE_TC_EMBED_PREFIX;
     if (fromEnv) return fromEnv;
   }
   try {
-    if (typeof __TC_EMBED_ORIGIN__ === "string" && __TC_EMBED_ORIGIN__) return __TC_EMBED_ORIGIN__;
+    if (typeof __TC_EMBED_PREFIX__ === "string" && __TC_EMBED_PREFIX__) return __TC_EMBED_PREFIX__;
   } catch {
     /* not defined */
   }
-  if (typeof window !== "undefined" && import.meta.env?.DEV) {
-    const port =
-      (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_TC_EMBED_PORT ||
-      String(DEFAULT_EMBED_PORT);
-    return `${window.location.protocol}//${window.location.hostname}:${port}`;
-  }
-  return "";
+  return import.meta.env?.DEV ? "/__tc" : "";
 }
 
 /**
- * Point a TC pay URL at the local framing proxy so it can load in an iframe.
+ * Point a TC pay URL at the same-origin framing proxy so it can load in an iframe.
  * Standalone / new-tab keeps the real TC host.
  */
 export function withTcEmbedProxy(payUrl: string): string {
-  const origin = tcEmbedOrigin();
-  if (!origin || !payUrl) return payUrl;
+  const prefix = tcEmbedPrefix();
+  if (!prefix || !payUrl) return payUrl;
   try {
     const src = new URL(payUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
     if (!/trustless-commerce|trustlesscommerce/i.test(src.hostname)) return payUrl;
-    const embed = new URL(origin);
-    src.protocol = embed.protocol;
-    src.host = embed.host;
-    return src.toString();
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    if (!origin) return payUrl;
+    return `${origin}${prefix}${src.pathname}${src.search}${src.hash}`;
   } catch {
     return payUrl;
   }
