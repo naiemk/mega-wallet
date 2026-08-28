@@ -189,16 +189,6 @@ export function DepositPage() {
           <p className="font-body-md text-body-md text-on-surface-variant">{t("startingTransfer")}</p>
         )}
         <SurfaceCard>
-          {awaiting && (
-            <DepositCardActionBar
-              title={t("depositReviewTitle")}
-              continueLabel={t("continueToPayment")}
-              cancelLabel={t("cancelDeposit")}
-              onContinue={() => navigate("/transfer/deposit/pay")}
-              onCancel={() => navigate("/transfer")}
-              continueDisabled={starting || !draft.transferId}
-            />
-          )}
           {rows.map((row, i) => (
             <div
               key={row.label}
@@ -219,6 +209,15 @@ export function DepositPage() {
             </div>
           ))}
         </SurfaceCard>
+        {awaiting && (
+          <DepositCardActionBar
+            continueLabel={t("continueToPayment")}
+            cancelLabel={t("cancelDeposit")}
+            onContinue={() => navigate("/transfer/deposit/pay")}
+            onCancel={() => navigate("/transfer")}
+            continueDisabled={starting || !draft.transferId}
+          />
+        )}
       </section>
 
       {error && <p className="text-error font-body-md text-body-md">{error}</p>}

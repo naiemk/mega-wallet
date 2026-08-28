@@ -26,14 +26,10 @@ export function WalletDepositStatusPage() {
   return (
     <div className="max-w-xl mx-auto px-container-margin py-lg flex flex-col gap-lg min-h-[calc(100dvh-3.5rem)] pb-lg">
       <SurfaceCard className="text-center">
-        {awaiting && transfer?.depositPayUrl && (
-          <DepositCardActionBar
-            title={t("depositReviewTitle")}
-            continueLabel={t("continueToPayment")}
-            cancelLabel={t("cancelDeposit")}
-            onContinue={() => navigate(`/deposit/${id}/pay`)}
-            onCancel={() => navigate("/")}
-          />
+        {awaiting && (
+          <p className="font-label-md text-label-md text-on-surface-variant m-0 px-md pt-md">
+            {t("depositReviewTitle")}
+          </p>
         )}
         <div className="p-md space-y-sm">
           <div
@@ -67,16 +63,26 @@ export function WalletDepositStatusPage() {
       {error && <p className="text-error font-body-md text-body-md">{error}</p>}
 
       <div className="mt-auto space-y-sm">
+        {awaiting && transfer?.depositPayUrl && (
+          <DepositCardActionBar
+            continueLabel={t("continueToPayment")}
+            cancelLabel={t("cancelDeposit")}
+            onContinue={() => navigate(`/deposit/${id}/pay`)}
+            onCancel={() => navigate("/")}
+          />
+        )}
         {expired && (
           <PrimaryButton onClick={() => navigate("/deposit")}>
             <Icon name="add" />
             {t("startNewDeposit")}
           </PrimaryButton>
         )}
-        <PrimaryButton variant="surface" onClick={() => navigate("/")}>
-          <Icon name="account_balance_wallet" />
-          {t("backToWallet")}
-        </PrimaryButton>
+        {!awaiting && (
+          <PrimaryButton variant="surface" onClick={() => navigate("/")}>
+            <Icon name="account_balance_wallet" />
+            {t("backToWallet")}
+          </PrimaryButton>
+        )}
       </div>
     </div>
   );
