@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { flagForLanguage } from "../lib/language";
 import { BrandLogo } from "./BrandLogo";
@@ -8,11 +8,13 @@ const TAB_PATHS = ["/", "/transfer", "/history", "/account"];
 
 function titleForPath(pathname: string, t: (k: string) => string): string {
   if (pathname === "/" || pathname === "/wallet") return t("wallet");
+  if (/^\/deposit\/[^/]+\/pay$/.test(pathname)) return t("depositCheckoutTitle");
   if (pathname.startsWith("/deposit/") && pathname !== "/deposit") return t("deposit");
   if (pathname === "/deposit") return t("deposit");
   if (pathname.startsWith("/withdraw/") && pathname !== "/withdraw") return t("withdraw");
   if (pathname === "/withdraw") return t("withdraw");
   if (pathname.startsWith("/transfer/recipient")) return t("recipient");
+  if (pathname === "/transfer/deposit/pay") return t("depositCheckoutTitle");
   if (pathname.startsWith("/transfer/deposit")) return t("stepDeposit");
   if (pathname.startsWith("/transfer/status")) return t("status");
   if (pathname.startsWith("/transfer")) return t("transfer");
@@ -31,7 +33,14 @@ function isRootTab(pathname: string) {
   return TAB_PATHS.includes(pathname) || pathname === "/wallet";
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function backTarget(pathname: string): string | null {
+  const walletPay = pathname.match(/^\/deposit\/([^/]+)\/pay$/);
+  if (walletPay) return `/deposit/${walletPay[1]}`;
+  if (pathname === "/transfer/deposit/pay") return "/transfer/deposit";
+  return null;
+}
+
+export function AppShell() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -42,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     location.pathname.startsWith("/transfer/recipient") ||
     location.pathname.startsWith("/transfer/deposit") ||
     location.pathname.startsWith("/transfer/status") ||
-    /^\/deposit\/[^/]+$/.test(location.pathname) ||
+    /^\/deposit\/[^/]+(\/pay)?$/.test(location.pathname) ||
     /^\/withdraw\/[^/]+$/.test(location.pathname) ||
     /^\/history\/[^/]+$/.test(location.pathname);
 
@@ -57,7 +66,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               className="w-10 h-10 -ms-2 flex items-center justify-center text-primary hover:opacity-80 active:scale-95 rounded-full"
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                const target = backTarget(location.pathname);
+                if (target) navigate(target);
+                else navigate(-1);
+              }}
               aria-label="Back"
             >
               <Icon name={rtl ? "arrow_forward" : "arrow_back"} />
@@ -95,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain ${hideNav ? "pb-lg" : "pb-md"}`}>
-          {children}
+          <Outlet />
         </main>
 
         {!hideNav && (

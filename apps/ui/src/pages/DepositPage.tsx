@@ -5,19 +5,11 @@ import { api } from "../lib/api";
 import { useApiErrorHandler } from "../lib/use-api-error";
 import { formatMoney, humanizeId, shortRef } from "../lib/format";
 import { useTransferWizard } from "../lib/transfer-wizard";
+import { isDepositTerminal } from "../lib/useDepositTransfer";
 import { Icon } from "../components/Icon";
-import { PrimaryButton } from "../components/PrimaryButton";
+import { DepositCardActionBar } from "../components/DepositCardActionBar";
 import { Stepper } from "../components/Stepper";
 import { SurfaceCard } from "../components/SurfaceCard";
-import { TcPayEmbed } from "../components/TcPayEmbed";
-
-const SETTLED_PHASES = new Set([
-  "deposited",
-  "recipient_set",
-  "withdraw_initiated",
-  "need_attention",
-  "withdraw_executed",
-]);
 
 export function DepositPage() {
   const { t, i18n } = useTranslation();
@@ -26,18 +18,9 @@ export function DepositPage() {
   const { draft, setDraft } = useTransferWizard();
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [fakeRamps, setFakeRamps] = useState(false);
-  const [statusHint, setStatusHint] = useState("");
   const [pullY, setPullY] = useState(0);
   const startedRef = useRef(false);
   const touchStartY = useRef<number | null>(null);
-
-  useEffect(() => {
-    void api<{ fakeRamps?: boolean }>("/api/health")
-      .then((h) => setFakeRamps(!!h.fakeRamps))
-      .catch(() => setFakeRamps(false));
-  }, []);
 
   useEffect(() => {
     if (!draft.quoteId) {
@@ -59,10 +42,32 @@ export function DepositPage() {
 
   useEffect(() => {
     if (!draft.transferId) return;
-    const timer = setInterval(() => void pollAndAdvance(true), 4000);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.transferId]);
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    async function poll() {
+      if (cancelled || !draft.transferId) return;
+      try {
+        const row = await api<{ transfer: { id: string; phase: string } }>(
+          `/api/transfers/${draft.transferId}`,
+        );
+        if (cancelled) return;
+        if (isDepositTerminal(row.transfer.phase, "transfer")) {
+          navigate("/transfer/status");
+          if (timer) clearInterval(timer);
+        }
+      } catch {
+        /* background poll — ignore transient errors */
+      }
+    }
+
+    void poll();
+    timer = setInterval(() => void poll(), 4000);
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [draft.transferId, navigate]);
 
   async function startTransfer() {
     if (!draft.quoteId || starting) return;
@@ -97,43 +102,6 @@ export function DepositPage() {
     }
   }
 
-  async function pollAndAdvance(silent = false): Promise<boolean> {
-    if (!draft.transferId) return false;
-    if (!silent) {
-      setChecking(true);
-      setError("");
-      setStatusHint("");
-    }
-    try {
-      const row = await api<{ transfer: { id: string; phase: string } }>(
-        `/api/transfers/${draft.transferId}`,
-      );
-      if (SETTLED_PHASES.has(row.transfer.phase)) {
-        navigate("/transfer/status");
-        return true;
-      }
-      if (!silent) setStatusHint(t("waitingForPayment"));
-      return false;
-    } catch (e) {
-      if (!silent) handleApiError(e, setError);
-      return false;
-    } finally {
-      if (!silent) setChecking(false);
-    }
-  }
-
-  async function refreshStatus() {
-    const done = await pollAndAdvance(false);
-    if (done || !fakeRamps || !draft.transferId) return;
-    try {
-      await api(`/api/dev/simulate-deposit/${draft.transferId}`, { method: "POST" });
-      await pollAndAdvance(true);
-      navigate("/transfer/status");
-    } catch (e) {
-      handleApiError(e, setError);
-    }
-  }
-
   function onTouchStart(e: React.TouchEvent) {
     if (window.scrollY <= 0) touchStartY.current = e.touches[0]?.clientY ?? null;
   }
@@ -145,13 +113,12 @@ export function DepositPage() {
   }
 
   function onTouchEnd() {
-    if (pullY > 64) void pollAndAdvance(false);
     touchStartY.current = null;
     setPullY(0);
   }
 
-  const payMinor =
-    draft.sourceAmountMinor || Math.round(Number(draft.amount || 0) * 100);
+  const payMinor = draft.sourceAmountMinor || Math.round(Number(draft.amount || 0) * 100);
+  const awaiting = !!draft.depositPayUrl && !!draft.transferId;
   const rows = [
     {
       label: t("recipientReceives"),
@@ -182,7 +149,7 @@ export function DepositPage() {
 
   return (
     <div
-      className="px-container-margin py-lg flex flex-col gap-lg min-h-[calc(100dvh-3.5rem)] w-full pb-4"
+      className="px-container-margin py-lg flex flex-col gap-lg min-h-[calc(100dvh-3.5rem)] w-full pb-lg"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -215,11 +182,23 @@ export function DepositPage() {
         <h2 className="font-display-md-mobile text-display-md-mobile font-bold text-on-background m-0">
           {t("depositFunds")}
         </h2>
-        <p className="font-body-md text-body-md text-on-surface-variant m-0">{t("depositHint")}</p>
+        <p className="font-body-md text-body-md text-on-surface-variant m-0">
+          {awaiting ? t("depositReviewHint") : t("depositHint")}
+        </p>
         {starting && (
           <p className="font-body-md text-body-md text-on-surface-variant">{t("startingTransfer")}</p>
         )}
         <SurfaceCard>
+          {awaiting && (
+            <DepositCardActionBar
+              title={t("depositReviewTitle")}
+              continueLabel={t("continueToPayment")}
+              cancelLabel={t("cancelDeposit")}
+              onContinue={() => navigate("/transfer/deposit/pay")}
+              onCancel={() => navigate("/transfer")}
+              continueDisabled={starting || !draft.transferId}
+            />
+          )}
           {rows.map((row, i) => (
             <div
               key={row.label}
@@ -242,27 +221,7 @@ export function DepositPage() {
         </SurfaceCard>
       </section>
 
-      {draft.depositPayUrl && (
-        <section className="flex flex-col gap-sm">
-          <TcPayEmbed payUrl={draft.depositPayUrl} />
-        </section>
-      )}
-
       {error && <p className="text-error font-body-md text-body-md">{error}</p>}
-      {statusHint && !error && (
-        <p className="font-body-md text-body-md text-on-surface-variant text-center">{statusHint}</p>
-      )}
-
-      <div className="app-dock">
-        <PrimaryButton
-          variant="surface"
-          onClick={() => void refreshStatus()}
-          disabled={starting || checking || !draft.transferId}
-        >
-          {checking ? t("checkingStatus") : t("refreshStatus")}
-          <Icon name="refresh" />
-        </PrimaryButton>
-      </div>
     </div>
   );
 }

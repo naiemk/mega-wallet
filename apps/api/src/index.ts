@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { createAuth, runAuthMigrations } from "./auth.js";
+import { generateAppleClientSecret } from "./apple-client-secret.js";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
@@ -26,6 +27,19 @@ import { TransferService } from "./services/transfers.js";
 import { LedgerService } from "./services/ledger.js";
 
 const config = loadConfig();
+if (
+  config.appleClientId &&
+  config.appleTeamId &&
+  config.appleKeyId &&
+  config.applePrivateKey
+) {
+  config.appleClientSecret = await generateAppleClientSecret({
+    clientId: config.appleClientId,
+    teamId: config.appleTeamId,
+    keyId: config.appleKeyId,
+    privateKeyPem: config.applePrivateKey,
+  });
+}
 mkdirSync(dirname(config.databaseUrl), { recursive: true });
 mkdirSync(dirname(config.eventLogPath), { recursive: true });
 

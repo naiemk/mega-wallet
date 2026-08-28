@@ -7,7 +7,7 @@ test("home page loads wallet UI", async ({ page }) => {
 });
 
 test("language switch to Farsi enables RTL", async ({ page }) => {
-  await page.goto("/account");
+  await page.goto("/account/language");
   await page.getByLabel(/Language|زبان|اللغة/).selectOption("fa");
   await expect(page.locator("html")).toHaveAttribute("lang", "fa");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

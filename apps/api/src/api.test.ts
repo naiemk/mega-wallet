@@ -64,6 +64,58 @@ describe("passwordless auth options", () => {
     },
     15_000,
   );
+
+  it("reports public auth providers without OAuth secrets", async () => {
+    const { authProvidersPublic } = await import("../src/auth.js");
+    const config = {
+      ...loadConfig(),
+      googleClientId: "",
+      googleClientSecret: "",
+      appleClientId: "",
+      appleClientSecret: "",
+      telegramOidcClientId: "",
+      telegramOidcClientSecret: "",
+    };
+    expect(authProvidersPublic(config)).toEqual({
+      google: false,
+      apple: false,
+      telegram: false,
+      passkey: true,
+      emailOtp: true,
+    });
+  });
+
+  it("enables telegram when OIDC credentials are configured", async () => {
+    const { authProvidersPublic, buildAuthOptions } = await import("../src/auth.js");
+    const config = {
+      ...loadConfig(),
+      telegramOidcClientId: "tg-client",
+      telegramOidcClientSecret: "tg-secret",
+      databaseUrl: join(tmpdir(), `mw-auth-${randomUUID()}.db`),
+    };
+    expect(authProvidersPublic(config).telegram).toBe(true);
+    const options = buildAuthOptions(config);
+    const pluginIds = (options.plugins ?? []).map((p) => (p as { id?: string }).id);
+    expect(pluginIds).toContain("generic-oauth");
+  });
+
+  it("uses dynamic base URL and trusted proxy headers for forwarded UI ports", async () => {
+    const { buildAuthBaseURL, buildAuthOptions } = await import("../src/auth.js");
+    const config = {
+      ...loadConfig(),
+      publicUiUrl: "http://localhost:5173",
+      betterAuthUrl: "http://localhost:8080",
+      publicApiUrl: "http://localhost:8080",
+      databaseUrl: join(tmpdir(), `mw-auth-${randomUUID()}.db`),
+    };
+    expect(buildAuthBaseURL(config)).toEqual({
+      allowedHosts: ["localhost", "127.0.0.1"],
+      fallback: "http://localhost:8080",
+      protocol: "auto",
+    });
+    const options = buildAuthOptions(config);
+    expect(options.advanced?.trustedProxyHeaders).toBe(true);
+  });
 });
 
 describe("fake on-ramp", () => {

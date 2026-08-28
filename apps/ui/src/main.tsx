@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./index.css";
 import "./i18n";
 import { AppShell } from "./components/AppShell";
+import { AuthLayout } from "./components/AuthLayout";
 import { TransferWizardProvider } from "./lib/transfer-wizard";
 import { WalletPage } from "./pages/WalletPage";
 import { TransferQuotePage } from "./pages/TransferQuotePage";
@@ -12,6 +13,8 @@ import { DepositPage } from "./pages/DepositPage";
 import { StatusPage } from "./pages/StatusPage";
 import { WalletDepositPage } from "./pages/WalletDepositPage";
 import { WalletDepositStatusPage } from "./pages/WalletDepositStatusPage";
+import { WalletDepositPayPage } from "./pages/WalletDepositPayPage";
+import { TransferDepositPayPage } from "./pages/TransferDepositPayPage";
 import { PaymentReturnPage } from "./pages/PaymentReturnPage";
 import { WithdrawPage } from "./pages/WithdrawPage";
 import { WithdrawStatusPage } from "./pages/WithdrawStatusPage";
@@ -19,6 +22,9 @@ import { BankAccountsPage } from "./pages/BankAccountsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HistoryDetailPage } from "./pages/HistoryDetailPage";
 import { AccountPage } from "./pages/AccountPage";
+import { LoginPage } from "./pages/LoginPage";
+import { EmailLoginPage } from "./pages/EmailLoginPage";
+import { PasskeyEnrollPage } from "./pages/PasskeyEnrollPage";
 import { LanguagePage } from "./pages/LanguagePage";
 import { PasskeysPage } from "./pages/PasskeysPage";
 import { OperatorPage } from "./pages/OperatorPage";
@@ -34,11 +40,17 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <TransferWizardProvider>
-        <AppShell>
-          <Routes>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login/email" element={<EmailLoginPage />} />
+            <Route path="/login/passkey" element={<PasskeyEnrollPage />} />
+          </Route>
+          <Route element={<AppShell />}>
             <Route path="/" element={<WalletPage />} />
             <Route path="/wallet" element={<Navigate to="/" replace />} />
             <Route path="/deposit" element={<WalletDepositPage />} />
+            <Route path="/deposit/:id/pay" element={<WalletDepositPayPage />} />
             <Route path="/deposit/:id" element={<WalletDepositStatusPage />} />
             <Route path="/payment/return" element={<PaymentReturnPage />} />
             <Route path="/withdraw" element={<WithdrawPage />} />
@@ -46,6 +58,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/account/banks" element={<BankAccountsPage />} />
             <Route path="/transfer" element={<TransferQuotePage />} />
             <Route path="/transfer/recipient" element={<RecipientPage />} />
+            <Route path="/transfer/deposit/pay" element={<TransferDepositPayPage />} />
             <Route path="/transfer/deposit" element={<DepositPage />} />
             <Route path="/transfer/status" element={<StatusPage />} />
             <Route path="/history" element={<HistoryPage />} />
@@ -56,8 +69,8 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/operator" element={<OperatorPage />} />
             <Route path="/invite" element={<InvitePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppShell>
+          </Route>
+        </Routes>
       </TransferWizardProvider>
     </BrowserRouter>
   </StrictMode>,

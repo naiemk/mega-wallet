@@ -48,6 +48,7 @@ export function withTcCheckoutParams(
       typeof window !== "undefined" ? window.location.origin : "http://localhost",
     );
     url.searchParams.set("lang", tcLocale(opts.language));
+    url.searchParams.set("theme", "light");
     if (opts.mode === "embed") {
       url.searchParams.set("header", "none");
     } else {
@@ -58,7 +59,8 @@ export function withTcCheckoutParams(
   } catch {
     const sep = payUrl.includes("?") ? "&" : "?";
     const lang = `lang=${encodeURIComponent(tcLocale(opts.language))}`;
+    const theme = "&theme=light";
     const header = opts.mode === "embed" ? "&header=none" : "&header=minimal";
-    return `${payUrl}${sep}${lang}${header}`;
+    return `${payUrl}${sep}${lang}${theme}${header}`;
   }
 }

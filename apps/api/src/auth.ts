@@ -1,25 +1,113 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import Database from "better-sqlite3";
 import { passkey } from "@better-auth/passkey";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, genericOAuth } from "better-auth/plugins";
 import { getMigrations } from "better-auth/db/migration";
 import type { AppConfig } from "./config.js";
 import { isAllowedOrigin } from "./config.js";
 import { passkeyRpId, sendOtpEmail } from "./auth-otp.js";
 
+export function authProvidersPublic(config: AppConfig) {
+  return {
+    google: Boolean(config.googleClientId && config.googleClientSecret),
+    apple: Boolean(config.appleClientId && config.appleClientSecret),
+    telegram: Boolean(config.telegramOidcClientId && config.telegramOidcClientSecret),
+    passkey: true,
+    emailOtp: true,
+  };
+}
+
+/** Resolve OAuth/base URLs from the UI origin when proxied (Cursor/docker forwarded ports). */
+export function buildAuthBaseURL(config: AppConfig): NonNullable<BetterAuthOptions["baseURL"]> {
+  const hosts = new Set<string>(["localhost", "127.0.0.1"]);
+  for (const raw of [config.publicUiUrl, config.betterAuthUrl, config.publicApiUrl]) {
+    try {
+      hosts.add(new URL(raw).hostname);
+    } catch {
+      /* ignore invalid URL */
+    }
+  }
+  return {
+    allowedHosts: [...hosts],
+    fallback: config.betterAuthUrl,
+    protocol: "auto",
+  };
+}
+
+function buildSocialProviders(config: AppConfig): BetterAuthOptions["socialProviders"] {
+  const providers: NonNullable<BetterAuthOptions["socialProviders"]> = {};
+  if (config.googleClientId && config.googleClientSecret) {
+    providers.google = {
+      clientId: config.googleClientId,
+      clientSecret: config.googleClientSecret,
+      prompt: "select_account",
+    };
+  }
+  if (config.appleClientId && config.appleClientSecret) {
+    providers.apple = {
+      clientId: config.appleClientId,
+      clientSecret: config.appleClientSecret,
+      ...(config.appleAppBundleIdentifier
+        ? { appBundleIdentifier: config.appleAppBundleIdentifier }
+        : {}),
+    };
+  }
+  return Object.keys(providers).length > 0 ? providers : undefined;
+}
+
+function buildGenericOAuthPlugins(config: AppConfig) {
+  if (!config.telegramOidcClientId || !config.telegramOidcClientSecret) {
+    return [];
+  }
+  return [
+    genericOAuth({
+      config: [
+        {
+          providerId: "telegram",
+          clientId: config.telegramOidcClientId,
+          clientSecret: config.telegramOidcClientSecret,
+          discoveryUrl: "https://oauth.telegram.org/.well-known/openid-configuration",
+          pkce: true,
+          scopes: ["openid", "profile"],
+          mapProfileToUser: (profile) => {
+            const sub = String(profile.sub ?? profile.id ?? "");
+            const name =
+              (typeof profile.name === "string" && profile.name) ||
+              (typeof profile.preferred_username === "string" && profile.preferred_username) ||
+              undefined;
+            const email =
+              (typeof profile.email === "string" && profile.email) ||
+              (sub ? `${sub}@telegram.user` : undefined);
+            return { name, email };
+          },
+        },
+      ],
+    }),
+  ];
+}
+
 export function buildAuthOptions(config: AppConfig): BetterAuthOptions {
   const db = new Database(config.databaseUrl.replace("file:", "") || config.databaseUrl);
+  const hasApple = Boolean(config.appleClientId && config.appleClientSecret);
   return {
     database: db,
     secret: config.betterAuthSecret,
-    baseURL: config.betterAuthUrl,
+    baseURL: buildAuthBaseURL(config),
+    advanced: {
+      trustedProxyHeaders: true,
+    },
     trustedOrigins: (request) => {
       const origin = request?.headers.get("origin") ?? "";
-      return isAllowedOrigin(origin, config.publicUiUrl) ? [origin, config.publicUiUrl] : [config.publicUiUrl];
+      const allowed = isAllowedOrigin(origin, config.publicUiUrl)
+        ? [origin, config.publicUiUrl]
+        : [config.publicUiUrl];
+      if (hasApple) allowed.push("https://appleid.apple.com");
+      return allowed;
     },
     emailAndPassword: {
       enabled: false,
     },
+    socialProviders: buildSocialProviders(config),
     plugins: [
       emailOTP({
         async sendVerificationOTP({ email, otp, type }) {
@@ -27,13 +115,11 @@ export function buildAuthOptions(config: AppConfig): BetterAuthOptions {
         },
       }),
       passkey({
-        // Must match the browser hostname (use http://localhost — not 127.0.0.1).
         rpID: passkeyRpId(config.publicUiUrl),
         rpName: "Mega Wallet",
-        // Do NOT pin origin to PUBLIC_UI_URL: Cursor/VS Code forwards use other
-        // localhost ports. Leave unset so verify uses the request Origin header.
         origin: null,
       }),
+      ...buildGenericOAuthPlugins(config),
     ],
     user: {
       additionalFields: {

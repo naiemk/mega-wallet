@@ -1,10 +1,17 @@
 import {
   startAuthentication,
   WebAuthnError,
+  type AuthenticatorTransportFuture,
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 import { authClient } from "./auth-client";
-import { rememberAuthEmail, rememberPasskeyEnrolled } from "./auth-storage";
+import {
+  identityKindFromEmail,
+  rememberAuthEmail,
+  rememberPasskey,
+  rememberPasskeyEnrolled,
+  touchPasskey,
+} from "./auth-storage";
 
 type PasskeyErr = { message?: string; code?: string } | null | undefined;
 
@@ -43,10 +50,11 @@ async function readError(res: Response): Promise<string> {
 
 /**
  * Complete WebAuthn passkey sign-in via native fetch (reliable cookies) and
- * confirm a session exists. Avoids better-auth client swallowing verify errors
- * as generic "Auth cancelled".
+ * confirm a session exists. When credentialId is set, scopes WebAuthn to that passkey.
  */
 export async function completePasskeySignIn(opts?: {
+  credentialId?: string;
+  transports?: string[];
   fallbackEmail?: string;
 }): Promise<{ email: string }> {
   const base = authBase();
@@ -60,6 +68,18 @@ export async function completePasskeySignIn(opts?: {
     throw new Error(await readError(optionsRes));
   }
   const optionsJSON = (await optionsRes.json()) as PublicKeyCredentialRequestOptionsJSON;
+
+  const credentialId = opts?.credentialId?.trim();
+  if (credentialId) {
+    const transports = opts?.transports?.filter(Boolean) as AuthenticatorTransportFuture[] | undefined;
+    optionsJSON.allowCredentials = [
+      {
+        id: credentialId,
+        type: "public-key",
+        ...(transports?.length ? { transports } : {}),
+      },
+    ];
+  }
 
   let assertion: Awaited<ReturnType<typeof startAuthentication>>;
   try {
@@ -106,6 +126,20 @@ export async function completePasskeySignIn(opts?: {
   }
 
   rememberPasskeyEnrolled();
+  if (credentialId) {
+    touchPasskey(credentialId);
+  } else if (responseBody.id) {
+    const session = await authClient.getSession();
+    const identityLabel = email || opts?.fallbackEmail?.trim() || session.data?.user?.email || "";
+    if (identityLabel) {
+      rememberPasskey({
+        credentialId: responseBody.id,
+        name: session.data?.user?.name ?? identityLabel,
+        identityLabel,
+        identityKind: identityKindFromEmail(identityLabel),
+      });
+    }
+  }
   const toStore = email || opts?.fallbackEmail?.trim() || "";
   if (toStore) rememberAuthEmail(toStore);
   return { email: toStore };

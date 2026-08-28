@@ -21,7 +21,7 @@ test("passkey enroll and login", async () => {
     },
   });
 
-  await page.goto(`${base}/account`);
+  await page.goto(`${base}/login/email`);
   await page.locator("#email").fill(email);
   await page.getByRole("button", { name: /email me a code/i }).click();
   await page.waitForTimeout(1000);
@@ -31,7 +31,13 @@ test("passkey enroll and login", async () => {
   expect(otpRes.ok()).toBeTruthy();
   await page.locator("#otp").fill(String(otpJson.otp));
   await page.getByRole("button", { name: /verify/i }).click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(1000);
+
+  const skip = page.getByRole("button", { name: /skip for now/i });
+  if (await skip.isVisible().catch(() => false)) {
+    await skip.click();
+  }
+  await page.waitForTimeout(1000);
 
   await page.goto(`${base}/account/passkeys`);
   await page.waitForTimeout(1000);
@@ -44,7 +50,8 @@ test("passkey enroll and login", async () => {
   await page.getByRole("button", { name: /sign out/i }).click();
   await page.waitForTimeout(1000);
 
-  await page.getByRole("button", { name: /continue with passkey|passkey/i }).click();
+  await page.goto(`${base}/login`);
+  await page.getByRole("button", { name: new RegExp(email.split("@")[0], "i") }).click();
   await page.waitForTimeout(3500);
   const body = await page.locator("body").innerText();
   console.log("body after login", body.slice(0, 600));

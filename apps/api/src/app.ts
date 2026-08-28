@@ -7,6 +7,7 @@ import { isAllowedOrigin } from "./config.js";
 import { readLastOtp } from "./auth-otp.js";
 import { passkeyRpFromOrigin, passkeyRpStore } from "./passkey-rp.js";
 import { users } from "./db/schema.js";
+import { authProvidersPublic } from "./auth.js";
 import { handleTcEmbedProxy } from "./tc-embed-proxy.js";
 
 export function createApp(ctx: AppContext) {
@@ -22,6 +23,7 @@ export function createApp(ctx: AppContext) {
 
   app.get("/api/health", (c) => c.json({ ok: true, fakeRamps: ctx.config.fakeRamps }));
   app.get("/api/ready", (c) => c.json({ ok: true, db: true, fakeRamps: ctx.config.fakeRamps }));
+  app.get("/api/auth/providers", (c) => c.json(authProvidersPublic(ctx.config)));
 
   // Public TC checkout framing proxy (strip XFO; rewrite SPA onto this prefix).
   app.all("/api/tc-embed", (c) => handleTcEmbedProxy(c, ctx.config.trustlessCommerceUrl));
@@ -38,6 +40,22 @@ export function createApp(ctx: AppContext) {
           headers.set("origin", new URL(referer).origin);
         } catch {
           /* ignore invalid referer */
+        }
+      }
+    }
+
+    // Better Auth resolves OAuth redirect/callback URLs from the UI origin when proxied.
+    if (!headers.get("x-forwarded-host")) {
+      const uiOrigin = headers.get("origin") ?? headers.get("referer");
+      if (uiOrigin) {
+        try {
+          const ui = new URL(uiOrigin);
+          if (isAllowedOrigin(ui.origin, ctx.config.publicUiUrl)) {
+            headers.set("x-forwarded-host", ui.host);
+            headers.set("x-forwarded-proto", ui.protocol.replace(":", ""));
+          }
+        } catch {
+          /* ignore invalid origin */
         }
       }
     }
