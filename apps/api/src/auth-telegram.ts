@@ -1,17 +1,11 @@
 import { decodeJwt } from "jose";
-import type { OAuth2Tokens } from "@better-auth/core/oauth2";
-
-export type TelegramOidcProfile = {
-  sub: string;
-  id: string;
-  name?: string;
-  picture?: string;
-  preferred_username?: string;
-  [key: string]: unknown;
-};
+import type { GenericOAuthUserInfo } from "better-auth/plugins";
 
 /** Telegram OIDC has no userinfo endpoint; profile claims are only in id_token (no email). */
-export function telegramProfileFromTokens(tokens: OAuth2Tokens): TelegramOidcProfile | null {
+export function telegramProfileFromTokens(tokens: {
+  idToken?: string | null;
+  accessToken?: string;
+}): GenericOAuthUserInfo | null {
   if (!tokens.idToken) return null;
   try {
     const decoded = decodeJwt(tokens.idToken) as Record<string, unknown>;
@@ -21,6 +15,7 @@ export function telegramProfileFromTokens(tokens: OAuth2Tokens): TelegramOidcPro
       ...decoded,
       sub,
       id: sub,
+      emailVerified: false,
       name: typeof decoded.name === "string" ? decoded.name : undefined,
       picture: typeof decoded.picture === "string" ? decoded.picture : undefined,
       preferred_username:
@@ -31,10 +26,14 @@ export function telegramProfileFromTokens(tokens: OAuth2Tokens): TelegramOidcPro
   }
 }
 
-export function mapTelegramProfileToUser(profile: TelegramOidcProfile) {
-  const name = profile.name || profile.preferred_username || undefined;
+export function mapTelegramProfileToUser(profile: GenericOAuthUserInfo) {
+  const sub = String(profile.sub ?? profile.id ?? "");
+  const name =
+    (typeof profile.name === "string" && profile.name) ||
+    (typeof profile.preferred_username === "string" && profile.preferred_username) ||
+    undefined;
   return {
     name,
-    email: `${profile.sub}@telegram.user`,
+    email: sub ? `${sub}@telegram.user` : undefined,
   };
 }

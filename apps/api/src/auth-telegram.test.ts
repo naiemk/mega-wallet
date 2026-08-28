@@ -33,6 +33,7 @@ describe("telegramProfileFromTokens", () => {
       mapTelegramProfileToUser({
         sub: "999",
         id: "999",
+        emailVerified: false,
         preferred_username: "bob",
       }),
     ).toEqual({
