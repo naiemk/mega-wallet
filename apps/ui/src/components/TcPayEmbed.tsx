@@ -9,8 +9,9 @@ function openCheckout(payUrl: string, language: string) {
 }
 
 /**
- * Hosted TC checkout in an iframe (via local framing proxy in dev).
- * Keeps a new-tab fallback if the frame fails to load.
+ * Hosted TC checkout in an iframe via same-origin `/api/tc-embed` proxy
+ * (strips TC X-Frame-Options; works locally and on the deployed app).
+ * Keeps a new-tab fallback.
  */
 export function TcPayEmbed({
   payUrl,
