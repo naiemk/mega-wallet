@@ -7,6 +7,7 @@ import { isAllowedOrigin } from "./config.js";
 import { readLastOtp } from "./auth-otp.js";
 import { passkeyRpFromOrigin, passkeyRpStore } from "./passkey-rp.js";
 import { users } from "./db/schema.js";
+import { handleTcEmbedProxy } from "./tc-embed-proxy.js";
 
 export function createApp(ctx: AppContext) {
   const app = new Hono();
@@ -21,6 +22,10 @@ export function createApp(ctx: AppContext) {
 
   app.get("/api/health", (c) => c.json({ ok: true, fakeRamps: ctx.config.fakeRamps }));
   app.get("/api/ready", (c) => c.json({ ok: true, db: true, fakeRamps: ctx.config.fakeRamps }));
+
+  // Public TC checkout framing proxy (strip XFO; rewrite SPA onto this prefix).
+  app.all("/api/tc-embed", (c) => handleTcEmbedProxy(c, ctx.config.trustlessCommerceUrl));
+  app.all("/api/tc-embed/*", (c) => handleTcEmbedProxy(c, ctx.config.trustlessCommerceUrl));
 
   app.on(["POST", "GET"], "/api/auth/*", async (c) => {
     // WebAuthn verify needs an Origin. Some proxies omit it on POST; fall back to Referer.
@@ -80,6 +85,7 @@ export function createApp(ctx: AppContext) {
     if (c.req.path === "/api/health" || c.req.path === "/api/ready") return next();
     if (c.req.path.startsWith("/api/auth")) return next();
     if (c.req.path.startsWith("/api/internal")) return next();
+    if (c.req.path === "/api/tc-embed" || c.req.path.startsWith("/api/tc-embed/")) return next();
     await next();
   });
 

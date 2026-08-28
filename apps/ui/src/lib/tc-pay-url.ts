@@ -10,36 +10,24 @@ export function tcLocale(language: string | undefined | null): string {
 
 export type TcCheckoutMode = "embed" | "standalone";
 
-declare const __TC_EMBED_PREFIX__: string | undefined;
-
-/** Dev embed mount path (must match tc-embed-proxy). */
-export function tcEmbedPrefix(): string {
-  if (typeof import.meta !== "undefined") {
-    const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
-      ?.VITE_TC_EMBED_PREFIX;
-    if (fromEnv) return fromEnv;
-  }
-  try {
-    if (typeof __TC_EMBED_PREFIX__ === "string" && __TC_EMBED_PREFIX__) return __TC_EMBED_PREFIX__;
-  } catch {
-    /* not defined */
-  }
-  return import.meta.env?.DEV ? "/__tc" : "";
-}
+/** Same-origin framing proxy (API route; works in dev via Vite `/api` proxy and in prod). */
+export const TC_EMBED_PREFIX = "/api/tc-embed";
 
 /**
  * Point a TC pay URL at the same-origin framing proxy so it can load in an iframe.
  * Standalone / new-tab keeps the real TC host.
  */
 export function withTcEmbedProxy(payUrl: string): string {
-  const prefix = tcEmbedPrefix();
-  if (!prefix || !payUrl) return payUrl;
+  if (!payUrl) return payUrl;
   try {
-    const src = new URL(payUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    const src = new URL(
+      payUrl,
+      typeof window !== "undefined" ? window.location.origin : "http://localhost",
+    );
     if (!/trustless-commerce|trustlesscommerce/i.test(src.hostname)) return payUrl;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     if (!origin) return payUrl;
-    return `${origin}${prefix}${src.pathname}${src.search}${src.hash}`;
+    return `${origin}${TC_EMBED_PREFIX}${src.pathname}${src.search}${src.hash}`;
   } catch {
     return payUrl;
   }
@@ -55,7 +43,10 @@ export function withTcCheckoutParams(
 ): string {
   if (!payUrl) return payUrl;
   try {
-    const url = new URL(payUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    const url = new URL(
+      payUrl,
+      typeof window !== "undefined" ? window.location.origin : "http://localhost",
+    );
     url.searchParams.set("lang", tcLocale(opts.language));
     if (opts.mode === "embed") {
       url.searchParams.set("header", "none");
