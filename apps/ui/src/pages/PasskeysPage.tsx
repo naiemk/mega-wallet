@@ -5,7 +5,7 @@ import branding from "virtual:branding";
 import { apiOptional } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
 import { authClient } from "../lib/auth-client";
-import { rememberPasskeyEnrolled } from "../lib/auth-storage";
+import { rememberPasskeyEnrolled, persistEnrolledPasskey } from "../lib/auth-storage";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -39,6 +39,7 @@ export function PasskeysPage() {
   const [justAdded, setJustAdded] = useState(false);
   const [supportsPasskey, setSupportsPasskey] = useState(true);
   const [displayName, setDisplayName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
   const loadPasskeys = useCallback(async () => {
     const { data, error: fetchError } = await authClient.$fetch<PasskeyRow[]>(
@@ -61,10 +62,11 @@ export function PasskeysPage() {
           "/api/me",
         );
         if (!me?.user) {
-          navigate("/account", { replace: true });
+          navigate("/login?next=/account/passkeys", { replace: true });
           return;
         }
         setDisplayName(me.user.name || me.user.email || branding.name);
+        setUserEmail(me.user.email || "");
         await loadPasskeys();
       } catch (e) {
         setError(translateApiError(e, t));
@@ -86,6 +88,7 @@ export function PasskeysPage() {
         throw new Error(enrollError?.message ?? t("passkeyFailed"));
       }
       rememberPasskeyEnrolled();
+      persistEnrolledPasskey(data, { email: userEmail, name: displayName });
       setJustAdded(true);
       await loadPasskeys();
     } catch (e) {

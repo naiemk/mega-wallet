@@ -86,9 +86,11 @@ export function rewriteTcEmbedBody(body: string, type: string, tcOrigin: string,
   let out = rewriteTcApiBase(body, tcOrigin);
   if (type.includes("html")) {
     out = out.replace(/\b(src|href)=(["'])\/(?!\/)/gi, `$1=$2${prefix}/`);
-    const boot = `<script>(function(){var p=${JSON.stringify(prefix)};if(location.pathname.indexOf(p)===0){history.replaceState(null,"",(location.pathname.slice(p.length)||"/")+location.search+location.hash);}})();</script>`;
-    if (out.includes("</head>")) out = out.replace("</head>", `${boot}</head>`);
-    else out = boot + out;
+    const boot = `<script>(function(){var p=${JSON.stringify(prefix)};if(location.pathname.indexOf(p)===0){history.replaceState(null,"",(location.pathname.slice(p.length)||"/")+location.search+location.hash);}document.documentElement.dataset.theme="light";document.documentElement.style.colorScheme="light";})();</script>`;
+    const embedStyle =
+      '<style>html,body{overflow-x:hidden;background:#f8f9ff;}body{margin:0;}</style>';
+    if (out.includes("</head>")) out = out.replace("</head>", `${embedStyle}${boot}</head>`);
+    else out = embedStyle + boot + out;
   }
   if (type.includes("javascript") || type.includes("ecmascript") || type.includes("html")) {
     out = out.replace(/(["'`])\/assets\//g, `$1${prefix}/assets/`);

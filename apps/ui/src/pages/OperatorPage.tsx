@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { formatDigitsForLocale, irrToToman } from "@mega-wallet/core";
 import { api, apiOptional } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
+import { isOperatorRole } from "../lib/auth-login";
 import { acceptIntegerDigits, displayNumeric } from "../lib/numeric-input";
 import { FloatingField } from "../components/FloatingField";
 import { Icon } from "../components/Icon";
@@ -32,6 +34,7 @@ interface OperatorFxResponse {
 
 export function OperatorPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const lang = i18n.language;
   const [requests, setRequests] = useState<
     Array<{ id: string; recipientName?: string | null; phase: string; usdAmountCents?: number }>
@@ -50,7 +53,15 @@ export function OperatorPage() {
   const [fxMessage, setFxMessage] = useState("");
 
   useEffect(() => {
-    void load();
+    void (async () => {
+      const me = await apiOptional<{ profile?: { role?: string | null } }>("/api/me");
+      if (!me?.profile || !isOperatorRole(me.profile.role)) {
+        navigate("/", { replace: true });
+        return;
+      }
+      await load();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function load() {

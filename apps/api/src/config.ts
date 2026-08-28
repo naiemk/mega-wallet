@@ -35,6 +35,17 @@ export interface AppConfig {
   authEmailMode: "console" | "resend";
   resendApiKey: string;
   resendFrom: string;
+  googleClientId: string;
+  googleClientSecret: string;
+  appleClientId: string;
+  appleTeamId: string;
+  appleKeyId: string;
+  applePrivateKey: string;
+  appleAppBundleIdentifier: string;
+  /** Populated at startup when Apple credentials are configured. */
+  appleClientSecret: string;
+  telegramOidcClientId: string;
+  telegramOidcClientSecret: string;
 }
 
 function resolveAuthEmailMode(fakeRamps: boolean): "console" | "resend" {
@@ -68,6 +79,17 @@ function loadDotEnv() {
     }
     break;
   }
+}
+
+function stripEnvQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
 }
 
 loadDotEnv();
@@ -115,7 +137,17 @@ export function loadConfig(): AppConfig {
     publicUiUrl: process.env.PUBLIC_UI_URL ?? "http://localhost:5173",
     authEmailMode: resolveAuthEmailMode(process.env.FAKE_RAMPS === "1"),
     resendApiKey: process.env.RESEND_API_KEY ?? "",
-    resendFrom: process.env.RESEND_FROM ?? "Mega Wallet <onboarding@resend.dev>",
+    resendFrom: stripEnvQuotes(process.env.RESEND_FROM ?? "Mega Wallet <onboarding@resend.dev>"),
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    appleClientId: process.env.APPLE_CLIENT_ID ?? "",
+    appleTeamId: process.env.APPLE_TEAM_ID ?? "",
+    appleKeyId: process.env.APPLE_KEY_ID ?? "",
+    applePrivateKey: process.env.APPLE_PRIVATE_KEY ?? "",
+    appleAppBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? "",
+    appleClientSecret: "",
+    telegramOidcClientId: process.env.TELEGRAM_OIDC_CLIENT_ID ?? "",
+    telegramOidcClientSecret: process.env.TELEGRAM_OIDC_CLIENT_SECRET ?? "",
   };
 }
 

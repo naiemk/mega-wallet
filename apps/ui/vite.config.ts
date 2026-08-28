@@ -19,6 +19,16 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: "http://127.0.0.1:8080",
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq, req) => {
+              const host = req.headers.host;
+              if (host) {
+                proxyReq.setHeader("x-forwarded-host", host);
+                const proto = req.socket && "encrypted" in req.socket && req.socket.encrypted ? "https" : "http";
+                proxyReq.setHeader("x-forwarded-proto", proto);
+              }
+            });
+          },
         },
       },
     },

@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { translateApiError } from "../lib/api-error";
 import { humanPhase } from "../lib/phase";
+import { withTcCheckoutParams } from "../lib/tc-pay-url";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SurfaceCard } from "../components/SurfaceCard";
-import { TcPayEmbed } from "../components/TcPayEmbed";
 
 interface TransferDetail {
   id: string;
@@ -34,7 +34,7 @@ function kindOf(tx: TransferDetail) {
 }
 
 export function HistoryDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [transfer, setTransfer] = useState<TransferDetail | null>(null);
@@ -149,7 +149,25 @@ export function HistoryDetailPage() {
 
       {transfer.depositPayUrl && transfer.phase === "depositing" && (
         <section className="flex flex-col gap-sm">
-          <TcPayEmbed payUrl={transfer.depositPayUrl} />
+          {kind === "wallet_deposit" ? (
+            <PrimaryButton onClick={() => navigate(`/deposit/${transfer.id}`)}>
+              {t("continueToPayment")}
+              <Icon name="arrow_forward" />
+            </PrimaryButton>
+          ) : (
+            <PrimaryButton
+              onClick={() => {
+                const href = withTcCheckoutParams(transfer.depositPayUrl!, {
+                  language: i18n.language,
+                  mode: "standalone",
+                });
+                window.open(href, "_blank", "noopener,noreferrer");
+              }}
+            >
+              {t("openPaymentNewTab")}
+              <Icon name="open_in_new" />
+            </PrimaryButton>
+          )}
         </section>
       )}
 

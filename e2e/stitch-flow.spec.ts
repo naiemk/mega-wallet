@@ -29,13 +29,13 @@ test.describe("Stitch wallet flows", () => {
     await page.getByRole("button", { name: "Continue" }).click();
 
     // Unauthenticated transfer start redirects to sign-in (with return path)
-    await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
-    await expect(page.getByText(/Sign in|Email me a code|Create account/i).first()).toBeVisible();
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+    await expect(page.getByText(/Welcome|Sign in with email|passkeys/i).first()).toBeVisible();
 
     await page.goto("/history");
     await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
 
-    await page.goto("/account");
+    await page.goto("/account/language");
     await expect(page.getByRole("heading", { name: /Pool Begir/i })).toBeVisible();
     await expect(page.getByLabel("Language")).toBeVisible();
     await page.getByLabel("Language").selectOption("fa");

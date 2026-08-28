@@ -19,6 +19,8 @@ describe("tc-embed-proxy rewrites", () => {
     );
     expect(out).toContain(`src="${TC_EMBED_PREFIX}/assets/app.js"`);
     expect(out).toContain("history.replaceState");
+    expect(out).toContain('dataset.theme="light"');
+    expect(out).toContain("#f8f9ff");
     expect(out).toContain(TC_EMBED_PREFIX);
   });
 

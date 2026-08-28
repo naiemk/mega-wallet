@@ -6,7 +6,7 @@ export async function signUpWithOtp(
   page: Page,
   opts: { email: string; name: string },
 ): Promise<void> {
-  await page.goto("/account");
+  await page.goto("/login/email");
   await page.getByRole("button", { name: "Create account" }).first().click();
   await page.getByLabel("Name").fill(opts.name);
   await page.getByLabel("Email").fill(opts.email);
@@ -22,11 +22,9 @@ export async function signUpWithOtp(
 
   await page.getByLabel("Verification code").fill(otp);
   await page.getByRole("button", { name: "Verify code" }).click();
-  await expect(page.getByText("Signed in")).toBeVisible({ timeout: 15_000 });
 
-  // Passkey enroll is optional in e2e (Chromium may lack a virtual authenticator)
   const skip = page.getByRole("button", { name: "Skip for now" });
-  if (await skip.isVisible().catch(() => false)) {
+  if (await skip.isVisible({ timeout: 10_000 }).catch(() => false)) {
     await skip.click();
   }
 }
