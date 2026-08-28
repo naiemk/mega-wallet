@@ -6,6 +6,7 @@ import { getMigrations } from "better-auth/db/migration";
 import type { AppConfig } from "./config.js";
 import { isAllowedOrigin } from "./config.js";
 import { passkeyRpId, sendOtpEmail } from "./auth-otp.js";
+import { mapTelegramProfileToUser, telegramProfileFromTokens } from "./auth-telegram.js";
 
 export function authProvidersPublic(config: AppConfig) {
   return {
@@ -69,17 +70,8 @@ function buildGenericOAuthPlugins(config: AppConfig) {
           discoveryUrl: "https://oauth.telegram.org/.well-known/openid-configuration",
           pkce: true,
           scopes: ["openid", "profile"],
-          mapProfileToUser: (profile) => {
-            const sub = String(profile.sub ?? profile.id ?? "");
-            const name =
-              (typeof profile.name === "string" && profile.name) ||
-              (typeof profile.preferred_username === "string" && profile.preferred_username) ||
-              undefined;
-            const email =
-              (typeof profile.email === "string" && profile.email) ||
-              (sub ? `${sub}@telegram.user` : undefined);
-            return { name, email };
-          },
+          getUserInfo: async (tokens) => telegramProfileFromTokens(tokens),
+          mapProfileToUser: (profile) => mapTelegramProfileToUser(profile),
         },
       ],
     }),
