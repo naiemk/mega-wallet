@@ -37,6 +37,26 @@ function stripFramingHeaders(headers: Headers): Headers {
   return out;
 }
 
+/**
+ * Allow same-origin iframe embedding even when the edge gateway adds
+ * `X-Frame-Options: DENY` — modern browsers honor CSP frame-ancestors over XFO.
+ */
+export function applyEmbedFramePolicy(headers: Headers): void {
+  headers.delete("x-frame-options");
+  const existing = headers.get("content-security-policy");
+  const base = existing
+    ? existing
+        .split(";")
+        .map((d) => d.trim())
+        .filter((d) => d && !/^frame-ancestors\b/i.test(d))
+        .join("; ")
+    : "";
+  headers.set(
+    "content-security-policy",
+    base ? `${base}; frame-ancestors 'self'` : "frame-ancestors 'self'",
+  );
+}
+
 function contentTypeOf(headers: Headers): string {
   return headers.get("content-type") ?? "";
 }
@@ -132,6 +152,7 @@ export async function handleTcEmbedProxy(c: Context, tcBaseUrl: string): Promise
 
   const type = contentTypeOf(upstream.headers);
   const outHeaders = stripFramingHeaders(upstream.headers);
+  applyEmbedFramePolicy(outHeaders);
 
   if (!shouldRewrite(type)) {
     return new Response(upstream.body, { status: upstream.status, headers: outHeaders });

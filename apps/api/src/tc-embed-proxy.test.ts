@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rewriteTcApiBase, rewriteTcEmbedBody, TC_EMBED_PREFIX } from "./tc-embed-proxy.js";
+import { applyEmbedFramePolicy, rewriteTcApiBase, rewriteTcEmbedBody, TC_EMBED_PREFIX } from "./tc-embed-proxy.js";
 
 describe("tc-embed-proxy rewrites", () => {
   it("pins API base to absolute TC origin", () => {
@@ -20,5 +20,12 @@ describe("tc-embed-proxy rewrites", () => {
     expect(out).toContain(`src="${TC_EMBED_PREFIX}/assets/app.js"`);
     expect(out).toContain("history.replaceState");
     expect(out).toContain(TC_EMBED_PREFIX);
+  });
+
+  it("sets frame-ancestors so embed works when gateway adds X-Frame-Options DENY", () => {
+    const headers = new Headers({ "content-security-policy": "default-src 'self'" });
+    applyEmbedFramePolicy(headers);
+    expect(headers.get("content-security-policy")).toContain("frame-ancestors 'self'");
+    expect(headers.get("x-frame-options")).toBeNull();
   });
 });
